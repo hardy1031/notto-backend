@@ -1,205 +1,205 @@
 # Notto Backend Design
 
-Backend server (Hono / TypeScript / Bun) の設計ドキュメント。
+Design document for the backend server (Hono / TypeScript / Bun).
 
-詳細な API 仕様 → [Notto-docs/docs/api_design.md](../Notto-docs/docs/api_design.md)
-システム全体像 → [Notto-docs/docs/system_architecture.md](../Notto-docs/docs/system_architecture.md)
-
----
-
-## 設計の考え方
-
-```
-Business Logic   →   Use Case         →   Endpoint
-(何ができるか)        (どう組み合わせるか)     (どう呼ぶか)
-```
-
-- **Business Logic** : ドメインのルールそのもの。ユーザー・ノート・クイズ・AI 解釈など、アプリが持つ本質的な能力
-- **Use Case** : ビジネスロジックを組み合わせて、ひとつのユーザー意図を実現するフロー。複数のロジックを順番・条件付きで呼ぶ
-- **Endpoint** : HTTP リクエストを受け取り、Use Case を呼び出し、レスポンスを返す。ロジックは持たない
+API specification → [Notto-docs/docs/api_design.md](../Notto-docs/docs/api_design.md)
+System architecture → [Notto-docs/docs/system_architecture.md](../Notto-docs/docs/system_architecture.md)
 
 ---
 
-## Business Logic（何ができるか）
+## Design Philosophy
+
+```
+Business Logic   →   Use Case            →   Endpoint
+(what it can do)     (how to combine it)     (how to call it)
+```
+
+- **Business Logic**: The core capabilities of the application — what can be done with each domain entity (user, note, quiz, AI interpretation, etc.)
+- **Use Case**: Orchestrates business logic to fulfill a single user intent. Calls multiple logic functions in sequence or conditionally.
+- **Endpoint**: Receives an HTTP request, calls a use case, and returns a response. Holds no logic of its own.
+
+---
+
+## Business Logic (what it can do)
 
 ### Auth
 
-| ロジック | 概要 |
+| Function | Description |
 |---------|------|
-| `createUser` | Supabase Auth にユーザーを作成し、`users` テーブルにプロフィールを追加する |
-| `authenticateUser` | Supabase Auth で認証し、JWT を発行する |
-| `verifyToken` | JWT を検証してユーザー ID を取得する（Supabase Auth API に委譲） |
+| `createUser` | Create a user in Supabase Auth and insert a profile row into the `users` table |
+| `authenticateUser` | Authenticate via Supabase Auth and return a JWT |
+| `verifyToken` | Verify a JWT and retrieve the user ID (delegated to Supabase Auth API) |
 
 ### Notebook / Note
 
-| ロジック | 概要 |
+| Function | Description |
 |---------|------|
-| `findOrCreateNotebook` | クライアントの UUID を使ってノートブックを作成 or 既存を返す |
-| `upsertNote` | ノートを作成 or 更新する。`updated_at` で新旧を判断する |
-| `uploadNoteToS3` | ノートの本文を S3 にアップロードし、`s3_key` を返す |
-| `getNoteContent` | S3 からノート本文を取得する |
+| `findOrCreateNotebook` | Create a notebook using the client-generated UUID, or return the existing one |
+| `upsertNote` | Create or update a note. Uses `updated_at` to determine which is newer |
+| `uploadNoteToS3` | Upload note content to S3 and return the `s3_key` |
+| `getNoteContent` | Fetch note content from S3 |
 
 ### Context Object
 
-| ロジック | 概要 |
+| Function | Description |
 |---------|------|
-| `interpretNotes` | AI API にノート本文を送り、Context Object（表現・ニュアンス・トーン・例文など）を生成する |
-| `replaceContextObjects` | ノートが更新された際、そのノートに紐づく Context Object と Quiz を全て置き換える |
-| `bulkCreateContextObjects` | 生成された Context Object を DB に一括保存する |
+| `interpretNotes` | Send note content to the AI API and generate context objects (expression, nuance, tone, example dialogue, etc.) |
+| `replaceContextObjects` | When a note is updated, delete all existing context objects and quizzes tied to that note |
+| `bulkCreateContextObjects` | Bulk-insert generated context objects into the DB |
 
 ### Quiz
 
-| ロジック | 概要 |
+| Function | Description |
 |---------|------|
-| `generateQuizzes` | Context Object から Quiz を生成する（AI API 経由）|
-| `bulkCreateQuizzes` | 生成された Quiz を DB に一括保存する |
+| `generateQuizzes` | Generate quizzes from context objects via the AI API |
+| `bulkCreateQuizzes` | Bulk-insert generated quizzes into the DB |
 
 ### Quiz Run
 
-| ロジック | 概要 |
+| Function | Description |
 |---------|------|
-| `saveQuizRun` | Quiz Run と全 Quiz Record を DB に保存する |
+| `saveQuizRun` | Save a quiz run and all its quiz records to the DB |
 
 ### User Data
 
-| ロジック | 概要 |
+| Function | Description |
 |---------|------|
-| `fetchAllUserData` | ユーザーに紐づく全データ（Notebook / Note / Context Object / Quiz / Quiz Run / Quiz Record）を取得する |
+| `fetchAllUserData` | Fetch all data belonging to the user (notebooks, notes, context objects, quizzes, quiz runs, quiz records) |
 
 ### AI Learn
 
-| ロジック | 概要 |
+| Function | Description |
 |---------|------|
-| `askAI` | Context Object と質問文を AI API に送り、深掘り説明・例文・関連表現を返す（DB に保存しない）|
+| `askAI` | Send a context object and a question to the AI API. Returns an explanation, examples, and related expressions. Not persisted. |
 
 ---
 
-## Use Case（どう組み合わせるか）
+## Use Cases (how to combine it)
 
 ### `RegisterUseCase`
 
-ユーザー登録。
+User registration.
 
 ```
-1. createUser (Supabase Auth + users テーブル)
-2. JWT を返す
+1. createUser (Supabase Auth + users table)
+2. Return JWT
 ```
 
 ### `LoginUseCase`
 
-ログイン。
+User login.
 
 ```
 1. authenticateUser (Supabase Auth)
-2. JWT を返す
+2. Return JWT
 ```
 
 ### `SyncUseCase`
 
-クライアントが持つ Notebook / Note をサーバーと同期する。
+Sync the client's notebooks and notes to the server.
 
 ```
-1. findOrCreateNotebook × notebooks
-2. upsertNote × notes
-   ├─ 新規 or updated_at が新しい → uploadNoteToS3 → DB に s3_key 保存
-   └─ 同じ updated_at → スキップ
-3. 新規 or 更新されたノートの ID を返す
+1. findOrCreateNotebook for each notebook
+2. upsertNote for each note
+   ├─ New or updated_at is newer → uploadNoteToS3 → save s3_key to DB
+   └─ Same updated_at → skip
+3. Return IDs of new or updated notes
 ```
 
-同期ルール：
+Sync rules:
 
-| サーバーの状態 | クライアントの送信 | 処理 |
-|-------------|-----------------|------|
-| 存在しない | Notebook | 作成 |
-| 存在する・同じ `updated_at` | Notebook | スキップ |
-| 存在する・クライアントが新しい | Notebook | 更新 |
-| 存在しない | Note | 作成 + S3 アップロード |
-| 存在する・同じ `updated_at` | Note | スキップ（再生成なし）|
-| 存在する・クライアントが新しい | Note | 更新 + S3 再アップロード + 再生成フラグ |
+| Server state | Client sends | Action |
+|-------------|-------------|--------|
+| Does not exist | Notebook | Create |
+| Exists, same `updated_at` | Notebook | Skip |
+| Exists, client is newer | Notebook | Update |
+| Does not exist | Note | Create + upload to S3 |
+| Exists, same `updated_at` | Note | Skip (no re-generation) |
+| Exists, client is newer | Note | Update + re-upload to S3 + mark for re-generation |
 
 ### `GenerateQuizzesUseCase`
 
-新規・更新ノートから Context Object と Quiz を生成して保存する。
+Generate and save context objects and quizzes from new or updated notes.
 
 ```
-1. getNoteContent（S3 から本文取得）
-2. interpretNotes（AI API → Context Object 生成）
-3. generateQuizzes（AI API → Quiz 生成）
-4. replaceContextObjects（更新ノートの場合は旧データを削除）
+1. getNoteContent (fetch content from S3)
+2. interpretNotes (AI API → generate context objects)
+3. generateQuizzes (AI API → generate quizzes)
+4. replaceContextObjects (delete old data if note was updated)
 5. bulkCreateContextObjects
 6. bulkCreateQuizzes
-7. 生成結果を返す
+7. Return generated results
 ```
 
-`POST /sync` では この後に `GetUserDataUseCase` を続けて呼び、レスポンスに最新の全ユーザーデータを含める。クライアントはこの1レスポンスでローカル SQLite を最新状態にできる。
+In `POST /quizzes`, this is followed by `GetUserDataUseCase` so the response includes the latest full user data. The client can update its local SQLite in a single response.
 
 ### `SubmitQuizRunUseCase`
 
-クライアントから送られたクイズ結果をサーバーに保存する。
+Save a completed quiz run submitted by the client.
 
 ```
-1. quiz_id の存在確認（ユーザーが所有しているか）
-2. saveQuizRun（Quiz Run + Quiz Record を保存）
-3. 保存結果を返す
+1. Verify quiz_id exists and belongs to the user
+2. saveQuizRun (quiz run + quiz records)
+3. Return saved result
 ```
 
-> 正誤判定はクライアントが行う。サーバーは `is_correct` をそのまま信頼して保存する。
+> Correct/incorrect evaluation is done on the client. The server trusts `is_correct` as-is and stores it.
 
 ### `GetUserDataUseCase`
 
-クライアント起動時のバックグラウンド同期用。
+Used for background sync on app startup.
 
 ```
-1. verifyToken（JWT → user_id）
-2. fetchAllUserData（include パラメータでフィルタ可能）
-3. フラット配列で返す（クライアントが FK で関係を復元する）
+1. verifyToken (JWT → user_id)
+2. fetchAllUserData (filterable via include parameter)
+3. Return as flat arrays (client reconstructs relationships via foreign keys)
 ```
 
 ### `LearnUseCase`
 
-表現について AI に深掘り質問する（トランジェント、DB 保存なし）。
+Ask the AI a follow-up question about an expression. Transient — not persisted.
 
 ```
-1. context_object_id で Context Object を取得（user_id で所有確認）
-2. askAI（Context Object + 質問文 → AI API）
-3. explanation / examples / related_expressions を返す
+1. Fetch context object by context_object_id (verify user ownership)
+2. askAI (context object + question → AI API)
+3. Return explanation, examples, related_expressions
 ```
 
 ---
 
-## Endpoint（どう呼ぶか）
+## Endpoints (how to call it)
 
 | Method | Path | Use Case | Auth |
 |--------|------|----------|------|
-| POST | `/auth/register` | `RegisterUseCase` | 不要 |
-| POST | `/auth/login` | `LoginUseCase` | 不要 |
+| POST | `/auth/register` | `RegisterUseCase` | No |
+| POST | `/auth/login` | `LoginUseCase` | No |
 | GET | `/me` | `GetUserDataUseCase` | JWT |
 | POST | `/quizzes` | `SyncUseCase` → `GenerateQuizzesUseCase` → `GetUserDataUseCase` | JWT |
 | POST | `/quiz-runs` | `SubmitQuizRunUseCase` | JWT |
 | POST | `/learn` | `LearnUseCase` | JWT |
 
-### Endpoint の責務
+### Endpoint responsibilities
 
-Endpoint はロジックを持たず、以下のみを行う：
+An endpoint holds no logic. It only:
 
-1. リクエストをパース・バリデーション
-2. JWT を検証して `user_id` を取得（認証付きエンドポイント）
-3. Use Case を呼び出す
-4. Use Case の結果を HTTP レスポンスに変換する
+1. Parses and validates the request
+2. Verifies the JWT and extracts `user_id` (for authenticated endpoints)
+3. Calls the use case
+4. Converts the use case result into an HTTP response
 
 ---
 
-## ディレクトリ構成（予定）
+## Directory Structure (planned)
 
 ```
 src/
-  routes/           # Endpoint 定義（Hono ルーター）
+  routes/           # Endpoint definitions (Hono router)
     auth.ts
     me.ts
     quizzes.ts
     quizRuns.ts
     learn.ts
-  usecases/         # Use Case
+  usecases/         # Use cases
     RegisterUseCase.ts
     LoginUseCase.ts
     SyncUseCase.ts
@@ -207,7 +207,7 @@ src/
     SubmitQuizRunUseCase.ts
     GetUserDataUseCase.ts
     LearnUseCase.ts
-  domain/           # Business Logic（純粋な関数 or クラス）
+  domain/           # Business logic (pure functions or classes)
     auth/
     notebook/
     note/
@@ -215,24 +215,24 @@ src/
     quiz/
     quizRun/
     learn/
-  repositories/     # DB アクセス（PostgreSQL / SQLite の差を吸収）
+  repositories/     # DB access (abstracts differences between PostgreSQL and SQLite)
     notebookRepository.ts
     noteRepository.ts
     contextObjectRepository.ts
     quizRepository.ts
     quizRunRepository.ts
-  infrastructure/   # 外部サービスのクライアント
+  infrastructure/   # External service clients
     s3Client.ts
     aiClient.ts
     supabaseClient.ts
   middleware/
-    auth.ts         # JWT 検証ミドルウェア
-  index.ts          # エントリーポイント
+    auth.ts         # JWT verification middleware
+  index.ts          # Entry point
 ```
 
 ---
 
-## エラーレスポンス形式
+## Error Response Format
 
 ```json
 {
@@ -244,23 +244,23 @@ src/
 }
 ```
 
-| Code | Status | 用途 |
+| Code | Status | Used for |
 |------|--------|------|
-| `VALIDATION_ERROR` | 400 | バリデーション失敗 |
-| `UNAUTHORIZED` | 401 | JWT なし or 無効 |
-| `NOT_FOUND` | 404 | リソースが見つからない |
-| `CONFLICT` | 409 | 重複（メール登録済みなど） |
-| `AI_UNAVAILABLE` | 503 | AI API タイムアウト or 障害 |
+| `VALIDATION_ERROR` | 400 | Invalid input |
+| `UNAUTHORIZED` | 401 | Missing or invalid JWT |
+| `NOT_FOUND` | 404 | Resource not found |
+| `CONFLICT` | 409 | Duplicate resource (e.g. email already registered) |
+| `AI_UNAVAILABLE` | 503 | AI API timeout or unavailable |
 
 ---
 
-## 設計上の主な判断
+## Key Design Decisions
 
-| 判断 | 理由 |
-|------|------|
-| `POST /quizzes/generate` に Sync・Generate・データ返却をまとめる | クライアントから見て「クイズを作る」はひとつの操作。Push と Pull を1回で済ませる |
-| クライアントが Notebook / Note の UUID を生成する | オフラインで作成されるため、サーバー到達前に ID が必要 |
-| サーバーが Context Object / Quiz / Quiz Run の UUID を生成する | サーバーサイドで生成される成果物なので、サーバーが ID を管理 |
-| `is_correct` をクライアント評価・サーバー信頼 | 正誤判定ロジックはクライアントの責務。サーバーはストレージに徹する |
-| `POST /learn` の結果は DB 保存しない | 会話型 AI のやり取りを永続化すると容量が膨らむ。必要ならクライアントがローカルにキャッシュ |
-| `GET /me` はフラット配列で返す | クライアントがそのまま SQLite テーブルに INSERT しやすい形式 |
+| Decision | Reason |
+|---------|------|
+| `POST /quizzes` combines sync, generate, and data return | From the client's perspective, "generate quizzes" is a single action. Push and pull are done in one round trip. |
+| Client generates UUIDs for notebooks and notes | These are created offline, so IDs must exist before reaching the server. |
+| Server generates UUIDs for context objects, quizzes, and quiz runs | These are artifacts created server-side (AI generation, run submission), so the server owns their IDs. |
+| Client evaluates `is_correct`, server trusts it | Correct/incorrect logic belongs to the client. The server acts as a storage layer only. |
+| `POST /learn` response is not persisted | Persisting conversational AI interactions would grow storage unnecessarily. Client may cache locally if needed. |
+| `GET /me` returns flat arrays | Easier for the client to INSERT directly into SQLite tables. Client reconstructs relationships via foreign keys. |
