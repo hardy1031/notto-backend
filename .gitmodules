@@ -1,0 +1,3 @@
+[submodule "Notto-docs"]
+	path = Notto-docs
+	url = git@github-personal:hardy1031/Notto-docs
