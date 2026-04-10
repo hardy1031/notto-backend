@@ -1,3 +1,5 @@
 .*
 !.gitignore
 !.gitmodules
+node_modules/
+.env

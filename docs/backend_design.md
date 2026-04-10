@@ -220,6 +220,22 @@ An endpoint holds no logic. It only:
 
 ---
 
+## MVP Constraints
+
+### Note Pieces in MVP
+
+In MVP, notes are treated as plain text (no markup format). The server creates **one `note_piece` per note** (`order = 1`) when a note is created or updated. All `context_objects` generated from a note reference the same `note_piece_id`.
+
+The `note_piece.order` column is retained in the schema for production use (where AI or markup may split a note into multiple pieces), but has no functional significance in MVP.
+
+Note piece markup format and multi-piece splitting are deferred to production, when native note capture is built.
+
+### AI Client in MVP
+
+`infrastructure/aiClient.ts` returns **mock responses** in MVP. This allows the full request flow (sync → generate → persist) to be tested without real AI calls. The interface remains identical to production — swapping in the real AI client requires no changes to domain or use case code.
+
+---
+
 ## AI Prompt Design
 
 ### Storage
@@ -249,9 +265,57 @@ client.messages.create({
 })
 ```
 
+### AI Response Schema
+
+The prompts must instruct the AI to return JSON matching these schemas exactly.
+
+**`generateContextObjects` response:**
+
+```json
+{
+  "context_objects": [
+    {
+      "expression": "string",
+      "base_meaning": "string",
+      "actual_nuance": "string",
+      "tone": "string",
+      "formality": "casual | neutral | formal",
+      "is_slang": true,
+      "example_dialogue": [
+        { "speaker": "string", "text": "string" }
+      ]
+    }
+  ]
+}
+```
+
+**`generateQuizzes` response:**
+
+```json
+{
+  "quizzes": [
+    {
+      "context_object_index": 0,
+      "type": "choose_context | choose_pronunciation | fill_metadata",
+      "question_sentence": "string",
+      "answer": "string"
+    }
+  ]
+}
+```
+
+`context_object_index` references the position in the `context_objects` array passed to the quiz generation call, allowing the server to link each quiz to the correct `context_object_id`.
+
+**Malformed AI response handling:**
+
+If the AI returns a response that cannot be parsed as valid JSON or does not match the expected schema:
+
+1. Retry the request once
+2. If the retry also fails → throw `AIUnavailableError` → endpoint returns 503
+
 ### Prompt content
 
-Prompt content (the actual text inside `.txt` files) is deferred to production phase. MVP uses rough prompts sufficient for testing the flow.
+Prompt content (the actual text inside `.txt` files) is deferred to production phase. MVP uses mock responses.
 
 ### Future consideration
 
