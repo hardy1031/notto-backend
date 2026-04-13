@@ -28,51 +28,54 @@ export async function GenerateQuizzesUseCase(
 ): Promise<GenerateQuizzesOutput> {
   if (noteIds.length === 0) return { generated: [] }
 
+  // find note pieces that have not been interpreted into context objects yet
   const notePieces = await deps.notePieceRepo.findByNoteIds(noteIds)
   const existingContextObjects = await deps.contextObjectRepo.findByNoteIds(noteIds)
   const uninterpretedPieces = findUninterpretedPieces(notePieces, existingContextObjects)
 
+  // generate context objects for each uninterpreted piece via AI
   const newContextObjects: ContextObject[] = []
 
   for (const piece of uninterpretedPieces) {
     const content = await deps.getNoteContent(piece.noteId)
-    const generated = await generateContextObjects(content, deps.aiRepo)
+    const generatedContextObjects = await generateContextObjects(content, deps.aiRepo)
     const now = new Date()
-    const contextObjs: ContextObject[] = generated.map((g) => ({
+    const contextObjects: ContextObject[] = generatedContextObjects.map((generatedContextObject) => ({
       id: crypto.randomUUID(),
       notePieceId: piece.id,
       noteId: piece.noteId,
-      expression: g.expression,
-      baseMeaning: g.baseMeaning,
-      actualNuance: g.actualNuance,
-      tone: g.tone,
-      formality: g.formality,
-      isSlang: g.isSlang,
-      exampleDialogue: g.exampleDialogue,
+      expression: generatedContextObject.expression,
+      baseMeaning: generatedContextObject.baseMeaning,
+      actualNuance: generatedContextObject.actualNuance,
+      tone: generatedContextObject.tone,
+      formality: generatedContextObject.formality,
+      isSlang: generatedContextObject.isSlang,
+      exampleDialogue: generatedContextObject.exampleDialogue,
       createdAt: now,
       updatedAt: now,
     }))
-    newContextObjects.push(...contextObjs)
+    newContextObjects.push(...contextObjects)
   }
 
   if (newContextObjects.length > 0) {
     await deps.contextObjectRepo.bulkCreate(newContextObjects)
   }
 
+  // generate quizzes for context objects that don't have quizzes yet
   const contextObjectsWithoutQuizzes = await deps.contextObjectRepo.findWithoutQuizzes(noteIds)
 
   const generatedQuizItems = await generateQuizzes(contextObjectsWithoutQuizzes, deps.aiRepo)
 
   const now = new Date()
-  const newQuizzes: Quiz[] = generatedQuizItems.map((q) => {
-    const co = contextObjectsWithoutQuizzes[q.contextObjectIndex]
-    if (!co) throw new Error(`Invalid context_object_index: ${q.contextObjectIndex}`)
+  const newQuizzes: Quiz[] = generatedQuizItems.map((generatedQuizItem) => {
+    const contextObject = contextObjectsWithoutQuizzes[generatedQuizItem.contextObjectIndex]
+    if (!contextObject) throw new Error(`Invalid context_object_index: ${generatedQuizItem.contextObjectIndex}`)
     return {
       id: crypto.randomUUID(),
-      contextObjectId: co.id,
-      type: q.type,
-      questionSentence: q.questionSentence,
-      answer: q.answer,
+      contextObjectId: contextObject.id,
+      type: generatedQuizItem.type,
+      questionSentence: generatedQuizItem.questionSentence,
+      answer: generatedQuizItem.answer,
       createdAt: now,
       updatedAt: now,
     }
@@ -82,6 +85,7 @@ export async function GenerateQuizzesUseCase(
     await deps.quizRepo.bulkCreate(newQuizzes)
   }
 
+  // group quizzes by context object id for the response
   const quizzesByContextObjectId = new Map<string, Quiz[]>()
   for (const quiz of newQuizzes) {
     const existing = quizzesByContextObjectId.get(quiz.contextObjectId) ?? []
@@ -90,9 +94,9 @@ export async function GenerateQuizzesUseCase(
   }
 
   return {
-    generated: newContextObjects.map((co) => ({
-      contextObject: co,
-      quizzes: quizzesByContextObjectId.get(co.id) ?? [],
+    generated: newContextObjects.map((contextObject) => ({
+      contextObject,
+      quizzes: quizzesByContextObjectId.get(contextObject.id) ?? [],
     })),
   }
 }

@@ -83,32 +83,36 @@ export async function SyncUseCase(
 ): Promise<SyncOutput> {
   const { userId } = input
 
-  const clientNotebookIds = input.notebooks.map((n) => n.id)
+  // sync notebooks from client to server (LWW by updatedAt)
+  const clientNotebookIds = input.notebooks.map((notebook) => notebook.id)
   const existingNotebooks =
     clientNotebookIds.length > 0
       ? await deps.notebookRepo.findByUserIdAndIds(userId, clientNotebookIds)
       : []
-  const existingNotebookMap = new Map(existingNotebooks.map((n) => [n.id, n]))
+  const existingNotebookMap = new Map(existingNotebooks.map((notebook) => [notebook.id, notebook]))
 
-  for (const nb of input.notebooks) {
-    const existing = existingNotebookMap.get(nb.id)
+  for (const notebook of input.notebooks) {
+    const existing = existingNotebookMap.get(notebook.id)
     if (!existing) {
+      // create notebook if not exists on server
       await createNotebook(
-        { id: nb.id, userId, name: nb.name, createdAt: nb.createdAt, updatedAt: nb.updatedAt },
+        { id: notebook.id, userId, name: notebook.name, createdAt: notebook.createdAt, updatedAt: notebook.updatedAt },
         deps.notebookRepo
       )
-    } else if (nb.updatedAt > existing.updatedAt) {
+    } else if (notebook.updatedAt > existing.updatedAt) {
+      // update notebook if client version is newer
       await updateNotebook(
-        { ...existing, name: nb.name, updatedAt: nb.updatedAt },
+        { ...existing, name: notebook.name, updatedAt: notebook.updatedAt },
         deps.notebookRepo
       )
     }
   }
 
-  const clientNoteIds = input.notes.map((n) => n.id)
+  // sync notes from client to server (LWW by updatedAt)
+  const clientNoteIds = input.notes.map((note) => note.id)
   const existingNotes =
     clientNoteIds.length > 0 ? await deps.noteRepo.findByUserIdAndIds(userId, clientNoteIds) : []
-  const existingNoteMap = new Map(existingNotes.map((n) => [n.id, n]))
+  const existingNoteMap = new Map(existingNotes.map((note) => [note.id, note]))
 
   const syncedNoteIds: string[] = []
 
@@ -117,6 +121,7 @@ export async function SyncUseCase(
     const s3Key = note.s3Key || `${userId}/${note.notebookId}/${note.id}.md`
 
     if (!existing) {
+      // create note and its initial note piece if not exists on server
       await uploadNoteContent(s3Key, note.content, deps.noteStorage)
       await createNote(
         {
@@ -134,6 +139,7 @@ export async function SyncUseCase(
       ])
       syncedNoteIds.push(note.id)
     } else if (note.updatedAt > existing.updatedAt) {
+      // update note content and replace note pieces if client version is newer
       await uploadNoteContent(s3Key, note.content, deps.noteStorage)
       await updateNote({ ...existing, updatedAt: note.updatedAt }, deps.noteRepo)
       await deps.notePieceRepo.deleteByNoteId(note.id)
@@ -145,60 +151,63 @@ export async function SyncUseCase(
     }
   }
 
+  // sync quiz runs from client to server (insert only, no update)
   if (input.quizRuns) {
-    const clientQuizRunIds = input.quizRuns.map((r) => r.id)
+    const clientQuizRunIds = input.quizRuns.map((quizRun) => quizRun.id)
     const existingQuizRuns =
       clientQuizRunIds.length > 0
         ? await deps.quizRunRepo.findByUserIdAndIds(userId, clientQuizRunIds)
         : []
-    const existingQuizRunIds = new Set(existingQuizRuns.map((r) => r.quizRun.id))
+    const existingQuizRunIds = new Set(existingQuizRuns.map((quizRun) => quizRun.quizRun.id))
 
-    for (const qr of input.quizRuns) {
-      if (existingQuizRunIds.has(qr.id)) continue
-      const quizRun: QuizRun = {
-        id: qr.id,
+    for (const quizRun of input.quizRuns) {
+      if (existingQuizRunIds.has(quizRun.id)) continue
+      // save quiz run with its records if not exists on server
+      const quizRunEntity: QuizRun = {
+        id: quizRun.id,
         userId,
-        startedAt: qr.startedAt,
-        completedAt: qr.completedAt,
+        startedAt: quizRun.startedAt,
+        completedAt: quizRun.completedAt,
       }
-      const quizRecords: QuizRecord[] = qr.records.map((r) => ({
-        id: r.id,
-        quizRunId: qr.id,
-        quizId: r.quizId,
-        userAnswer: r.userAnswer,
-        isCorrect: r.isCorrect,
-        createdAt: r.createdAt,
+      const quizRecords: QuizRecord[] = quizRun.records.map((record) => ({
+        id: record.id,
+        quizRunId: quizRun.id,
+        quizId: record.quizId,
+        userAnswer: record.userAnswer,
+        isCorrect: record.isCorrect,
+        createdAt: record.createdAt,
       }))
-      await deps.quizRunRepo.save(quizRun, quizRecords)
+      await deps.quizRunRepo.save(quizRunEntity, quizRecords)
     }
   }
 
+  // fetch server-side data that the client does not have yet
   const serverNotebooks = await deps.notebookRepo.findByUserId(userId)
-  const clientNotebookIdSet = new Set(input.notebooks.map((n) => n.id))
-  const newNotebooks = serverNotebooks.filter((n) => !clientNotebookIdSet.has(n.id))
+  const clientNotebookIdSet = new Set(input.notebooks.map((notebook) => notebook.id))
+  const newNotebooks = serverNotebooks.filter((notebook) => !clientNotebookIdSet.has(notebook.id))
 
   const serverNotes = await deps.noteRepo.findByUserId(userId)
-  const clientNoteIdSet = new Set(input.notes.map((n) => n.id))
-  const newNotes = serverNotes.filter((n) => !clientNoteIdSet.has(n.id))
+  const clientNoteIdSet = new Set(input.notes.map((note) => note.id))
+  const newNotes = serverNotes.filter((note) => !clientNoteIdSet.has(note.id))
 
-  const allServerNoteIds = serverNotes.map((n) => n.id)
+  const allServerNoteIds = serverNotes.map((note) => note.id)
   const contextObjects =
     allServerNoteIds.length > 0 ? await deps.contextObjectRepo.findByNoteIds(allServerNoteIds) : []
-  const contextObjectIds = contextObjects.map((co) => co.id)
+  const contextObjectIds = contextObjects.map((contextObject) => contextObject.id)
   const quizzes =
     contextObjectIds.length > 0 ? await deps.quizRepo.findByContextObjectIds(contextObjectIds) : []
 
   const serverQuizRuns = await deps.quizRunRepo.findByUserId(userId)
-  const clientQuizRunIdSet = new Set((input.quizRuns ?? []).map((r) => r.id))
-  const newQuizRunsWithRecords = serverQuizRuns.filter((r) => !clientQuizRunIdSet.has(r.quizRun.id))
+  const clientQuizRunIdSet = new Set((input.quizRuns ?? []).map((quizRun) => quizRun.id))
+  const newQuizRunsWithRecords = serverQuizRuns.filter((quizRun) => !clientQuizRunIdSet.has(quizRun.quizRun.id))
 
   return {
     notebooks: newNotebooks,
     notes: newNotes,
     contextObjects,
     quizzes,
-    quizRuns: newQuizRunsWithRecords.map((r) => r.quizRun),
-    quizRecords: newQuizRunsWithRecords.flatMap((r) => r.quizRecords),
+    quizRuns: newQuizRunsWithRecords.map((quizRunWithRecords) => quizRunWithRecords.quizRun),
+    quizRecords: newQuizRunsWithRecords.flatMap((quizRunWithRecords) => quizRunWithRecords.quizRecords),
     syncedNoteIds,
   }
 }

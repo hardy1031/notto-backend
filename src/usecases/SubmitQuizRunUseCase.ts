@@ -26,11 +26,13 @@ export async function SubmitQuizRunUseCase(
     quizRunRepo: QuizRunRepository
   }
 ): Promise<SubmitQuizRunOutput> {
+  // validate that all quizzes in the records belong to the user
   for (const record of input.records) {
     const quiz = await deps.quizRepo.findByIdAndUserId(record.quizId, input.userId)
     if (!quiz) throw new NotFoundError(`Quiz not found: ${record.quizId}`)
   }
 
+  // build quiz run and its records, then save
   const now = new Date()
   const quizRun: QuizRun = {
     id: crypto.randomUUID(),
@@ -39,12 +41,12 @@ export async function SubmitQuizRunUseCase(
     completedAt: input.completedAt,
   }
 
-  const quizRecords: QuizRecord[] = input.records.map((r) => ({
+  const quizRecords: QuizRecord[] = input.records.map((record) => ({
     id: crypto.randomUUID(),
     quizRunId: quizRun.id,
-    quizId: r.quizId,
-    userAnswer: r.userAnswer,
-    isCorrect: r.isCorrect,
+    quizId: record.quizId,
+    userAnswer: record.userAnswer,
+    isCorrect: record.isCorrect,
     createdAt: now,
   }))
 
