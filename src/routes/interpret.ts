@@ -9,7 +9,7 @@ import { SupabaseNoteRepository } from "../infrastructure/repositories/supabaseN
 import { SupabaseNotebookRepository } from "../infrastructure/repositories/supabaseNotebookRepository.ts"
 import { SupabaseQuizRepository } from "../infrastructure/repositories/supabaseQuizRepository.ts"
 import { SupabaseQuizRunRepository } from "../infrastructure/repositories/supabaseQuizRunRepository.ts"
-import { S3NoteStorageRepository } from "../infrastructure/s3Client.ts"
+import { MockNoteStorageRepository } from "../infrastructure/mockNoteStorageRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { GenerateQuizzesUseCase } from "../usecases/GenerateQuizzesUseCase.ts"
@@ -49,7 +49,7 @@ interpretRouter.post(
     const userId = c.get("userId")
     const body = c.req.valid("json")
 
-    const noteStorage = new S3NoteStorageRepository()
+    const noteStorage = new MockNoteStorageRepository()
     const notebookRepo = new SupabaseNotebookRepository()
     const noteRepo = new SupabaseNoteRepository()
     const notePieceRepo = new SupabaseNotePieceRepository()

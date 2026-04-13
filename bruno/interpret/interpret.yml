@@ -1,0 +1,39 @@
+info:
+  name: interpret
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/interpret
+  auth:
+    type: bearer
+    token: "{{token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "notebooks": [
+          {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "name": "スラング",
+            "created_at": "2026-04-01T12:00:00Z",
+            "updated_at": "2026-04-01T12:00:00Z"
+          }
+        ],
+        "notes": [
+          {
+            "id": "00000000-0000-0000-0000-000000000002",
+            "notebook_id": "00000000-0000-0000-0000-000000000001",
+            "content": "겠냐? マジでそうだと思うん？ むずいスラング",
+            "created_at": "2026-04-01T12:00:00Z",
+            "updated_at": "2026-04-01T12:00:00Z"
+          }
+        ]
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -7,7 +7,7 @@ import { SupabaseNoteRepository } from "../infrastructure/repositories/supabaseN
 import { SupabaseNotebookRepository } from "../infrastructure/repositories/supabaseNotebookRepository.ts"
 import { SupabaseQuizRepository } from "../infrastructure/repositories/supabaseQuizRepository.ts"
 import { SupabaseQuizRunRepository } from "../infrastructure/repositories/supabaseQuizRunRepository.ts"
-import { S3NoteStorageRepository } from "../infrastructure/s3Client.ts"
+import { MockNoteStorageRepository } from "../infrastructure/mockNoteStorageRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import type { ContextObject, Note, Notebook, QuizRecord, QuizRun } from "../repositories/types.ts"
 import type { Quiz } from "../repositories/types.ts"
@@ -168,7 +168,7 @@ syncRouter.post(
         notebookRepo: new SupabaseNotebookRepository(),
         noteRepo: new SupabaseNoteRepository(),
         notePieceRepo: new SupabaseNotePieceRepository(),
-        noteStorage: new S3NoteStorageRepository(),
+        noteStorage: new MockNoteStorageRepository(),
         contextObjectRepo: new SupabaseContextObjectRepository(),
         quizRepo: new SupabaseQuizRepository(),
         quizRunRepo: new SupabaseQuizRunRepository(),

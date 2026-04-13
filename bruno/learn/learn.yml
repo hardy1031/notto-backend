@@ -1,0 +1,24 @@
+info:
+  name: learn
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/learn
+  auth:
+    type: bearer
+    token: "{{token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "context_object_id": "00000000-0000-0000-0000-000000000040",
+        "question": "How is 겠냐 different from 겠어?"
+      }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

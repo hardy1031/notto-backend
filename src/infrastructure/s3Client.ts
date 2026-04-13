@@ -11,9 +11,12 @@ if (!region || !accessKeyId || !secretAccessKey || !bucket) {
   throw new Error("Missing AWS environment variables")
 }
 
+const endpoint = process.env.AWS_ENDPOINT
+
 const client = new S3Client({
   region,
   credentials: { accessKeyId, secretAccessKey },
+  ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
 })
 
 export class S3NoteStorageRepository implements NoteStorageRepository {
