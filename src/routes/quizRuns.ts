@@ -36,10 +36,10 @@ quizRunsRouter.post(
         userId,
         startedAt: new Date(body.started_at),
         completedAt: body.completed_at ? new Date(body.completed_at) : null,
-        records: body.records.map((r) => ({
-          quizId: r.quiz_id,
-          userAnswer: r.user_answer,
-          isCorrect: r.is_correct,
+        records: body.records.map((record) => ({
+          quizId: record.quiz_id,
+          userAnswer: record.user_answer,
+          isCorrect: record.is_correct,
         })),
       },
       {
@@ -58,13 +58,13 @@ quizRunsRouter.post(
             ? result.quizRun.completedAt.toISOString()
             : null,
         },
-        quiz_records: result.quizRecords.map((r) => ({
-          id: r.id,
-          quiz_run_id: r.quizRunId,
-          quiz_id: r.quizId,
-          user_answer: r.userAnswer,
-          is_correct: r.isCorrect,
-          created_at: r.createdAt.toISOString(),
+        quiz_records: result.quizRecords.map((quizRecord) => ({
+          id: quizRecord.id,
+          quiz_run_id: quizRecord.quizRunId,
+          quiz_id: quizRecord.quizId,
+          user_answer: quizRecord.userAnswer,
+          is_correct: quizRecord.isCorrect,
+          created_at: quizRecord.createdAt.toISOString(),
         })),
       },
       201

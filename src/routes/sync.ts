@@ -45,23 +45,23 @@ const quizRunSchema = z.object({
   records: z.array(quizRecordSchema),
 })
 
-function serializeNotebook(n: Notebook) {
+function serializeNotebook(notebook: Notebook) {
   return {
-    id: n.id,
-    user_id: n.userId,
-    name: n.name,
-    created_at: n.createdAt.toISOString(),
-    updated_at: n.updatedAt.toISOString(),
+    id: notebook.id,
+    user_id: notebook.userId,
+    name: notebook.name,
+    created_at: notebook.createdAt.toISOString(),
+    updated_at: notebook.updatedAt.toISOString(),
   }
 }
 
-function serializeNote(n: Note) {
+function serializeNote(note: Note) {
   return {
-    id: n.id,
-    notebook_id: n.notebookId,
-    s3_key: n.s3Key,
-    created_at: n.createdAt.toISOString(),
-    updated_at: n.updatedAt.toISOString(),
+    id: note.id,
+    notebook_id: note.notebookId,
+    s3_key: note.s3Key,
+    created_at: note.createdAt.toISOString(),
+    updated_at: note.updatedAt.toISOString(),
   }
 }
 
@@ -82,35 +82,35 @@ function serializeContextObject(co: ContextObject) {
   }
 }
 
-function serializeQuiz(q: Quiz) {
+function serializeQuiz(quiz: Quiz) {
   return {
-    id: q.id,
-    context_object_id: q.contextObjectId,
-    type: q.type,
-    question_sentence: q.questionSentence,
-    answer: q.answer,
-    created_at: q.createdAt.toISOString(),
-    updated_at: q.updatedAt.toISOString(),
+    id: quiz.id,
+    context_object_id: quiz.contextObjectId,
+    type: quiz.type,
+    question_sentence: quiz.questionSentence,
+    answer: quiz.answer,
+    created_at: quiz.createdAt.toISOString(),
+    updated_at: quiz.updatedAt.toISOString(),
   }
 }
 
-function serializeQuizRun(r: QuizRun) {
+function serializeQuizRun(quizRun: QuizRun) {
   return {
-    id: r.id,
-    user_id: r.userId,
-    started_at: r.startedAt.toISOString(),
-    completed_at: r.completedAt ? r.completedAt.toISOString() : null,
+    id: quizRun.id,
+    user_id: quizRun.userId,
+    started_at: quizRun.startedAt.toISOString(),
+    completed_at: quizRun.completedAt ? quizRun.completedAt.toISOString() : null,
   }
 }
 
-function serializeQuizRecord(r: QuizRecord) {
+function serializeQuizRecord(quizRecord: QuizRecord) {
   return {
-    id: r.id,
-    quiz_run_id: r.quizRunId,
-    quiz_id: r.quizId,
-    user_answer: r.userAnswer,
-    is_correct: r.isCorrect,
-    created_at: r.createdAt.toISOString(),
+    id: quizRecord.id,
+    quiz_run_id: quizRecord.quizRunId,
+    quiz_id: quizRecord.quizId,
+    user_answer: quizRecord.userAnswer,
+    is_correct: quizRecord.isCorrect,
+    created_at: quizRecord.createdAt.toISOString(),
   }
 }
 
@@ -135,32 +135,32 @@ syncRouter.post(
     const result = await SyncUseCase(
       {
         userId,
-        notebooks: body.notebooks.map((n) => ({
-          id: n.id,
+        notebooks: body.notebooks.map((notebook) => ({
+          id: notebook.id,
           userId,
-          name: n.name,
-          createdAt: new Date(n.created_at),
-          updatedAt: new Date(n.updated_at),
+          name: notebook.name,
+          createdAt: new Date(notebook.created_at),
+          updatedAt: new Date(notebook.updated_at),
         })),
-        notes: body.notes.map((n) => ({
-          id: n.id,
-          notebookId: n.notebook_id,
-          s3Key: n.s3_key,
-          content: n.content,
-          createdAt: new Date(n.created_at),
-          updatedAt: new Date(n.updated_at),
+        notes: body.notes.map((note) => ({
+          id: note.id,
+          notebookId: note.notebook_id,
+          s3Key: note.s3_key,
+          content: note.content,
+          createdAt: new Date(note.created_at),
+          updatedAt: new Date(note.updated_at),
         })),
-        quizRuns: body.quiz_runs.map((r) => ({
-          id: r.id,
+        quizRuns: body.quiz_runs.map((quizRun) => ({
+          id: quizRun.id,
           userId,
-          startedAt: new Date(r.started_at),
-          completedAt: r.completed_at ? new Date(r.completed_at) : null,
-          records: r.records.map((rec) => ({
-            id: rec.id,
-            quizId: rec.quiz_id,
-            userAnswer: rec.user_answer,
-            isCorrect: rec.is_correct,
-            createdAt: new Date(rec.created_at),
+          startedAt: new Date(quizRun.started_at),
+          completedAt: quizRun.completed_at ? new Date(quizRun.completed_at) : null,
+          records: quizRun.records.map((record) => ({
+            id: record.id,
+            quizId: record.quiz_id,
+            userAnswer: record.user_answer,
+            isCorrect: record.is_correct,
+            createdAt: new Date(record.created_at),
           })),
         })),
       },

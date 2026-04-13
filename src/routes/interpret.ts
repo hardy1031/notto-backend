@@ -58,25 +58,25 @@ interpretRouter.post(
     const quizRunRepo = new SupabaseQuizRunRepository()
     const aiRepo = new MockAIRepository()
 
-    const contentByNoteId = new Map(body.notes.map((n) => [n.id, n.content]))
+    const contentByNoteId = new Map(body.notes.map((note) => [note.id, note.content]))
 
     const syncResult = await SyncUseCase(
       {
         userId,
-        notebooks: body.notebooks.map((n) => ({
-          id: n.id,
+        notebooks: body.notebooks.map((notebook) => ({
+          id: notebook.id,
           userId,
-          name: n.name,
-          createdAt: new Date(n.created_at),
-          updatedAt: new Date(n.updated_at),
+          name: notebook.name,
+          createdAt: new Date(notebook.created_at),
+          updatedAt: new Date(notebook.updated_at),
         })),
-        notes: body.notes.map((n) => ({
-          id: n.id,
-          notebookId: n.notebook_id,
-          s3Key: `${userId}/${n.notebook_id}/${n.id}.md`,
-          content: n.content,
-          createdAt: new Date(n.created_at),
-          updatedAt: new Date(n.updated_at),
+        notes: body.notes.map((note) => ({
+          id: note.id,
+          notebookId: note.notebook_id,
+          s3Key: `${userId}/${note.notebook_id}/${note.id}.md`,
+          content: note.content,
+          createdAt: new Date(note.created_at),
+          updatedAt: new Date(note.updated_at),
         })),
       },
       {
