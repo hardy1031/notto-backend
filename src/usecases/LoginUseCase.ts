@@ -1,5 +1,4 @@
-import { authenticateUser } from "../domain/auth/authenticateUser.ts"
-import type { CreatedUser } from "../domain/auth/createUser.ts"
+import type { AuthRepository, AuthUser } from "../repositories/authRepository.ts"
 
 export type LoginInput = {
   email: string
@@ -8,9 +7,12 @@ export type LoginInput = {
 
 export type LoginOutput = {
   token: string
-  user: CreatedUser
+  user: AuthUser
 }
 
-export async function LoginUseCase(input: LoginInput): Promise<LoginOutput> {
-  return authenticateUser(input.email, input.password)
+export async function LoginUseCase(
+  input: LoginInput,
+  authRepo: AuthRepository
+): Promise<LoginOutput> {
+  return authRepo.authenticateUser(input.email, input.password)
 }

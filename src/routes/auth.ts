@@ -1,8 +1,11 @@
 import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
 import { z } from "zod"
+import { SupabaseAuthRepository } from "../infrastructure/supabaseAuthRepository.ts"
 import { LoginUseCase } from "../usecases/LoginUseCase.ts"
 import { RegisterUseCase } from "../usecases/RegisterUseCase.ts"
+
+const authRepo = new SupabaseAuthRepository()
 
 export const authRouter = new Hono()
 
@@ -20,13 +23,16 @@ authRouter.post(
   ),
   async (c) => {
     const body = c.req.valid("json")
-    const result = await RegisterUseCase({
-      userName: body.user_name,
-      email: body.email,
-      password: body.password,
-      firstLanguage: body.first_language,
-      targetLanguage: body.target_language,
-    })
+    const result = await RegisterUseCase(
+      {
+        userName: body.user_name,
+        email: body.email,
+        password: body.password,
+        firstLanguage: body.first_language,
+        targetLanguage: body.target_language,
+      },
+      authRepo
+    )
     return c.json(
       {
         token: result.token,
@@ -55,7 +61,7 @@ authRouter.post(
   ),
   async (c) => {
     const body = c.req.valid("json")
-    const result = await LoginUseCase({ email: body.email, password: body.password })
+    const result = await LoginUseCase({ email: body.email, password: body.password }, authRepo)
     return c.json({
       token: result.token,
       user: {
