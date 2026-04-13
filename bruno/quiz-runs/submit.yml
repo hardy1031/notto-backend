@@ -17,18 +17,13 @@ http:
         "completed_at": "2026-04-01T12:05:00Z",
         "records": [
           {
-            "quiz_id": "00000000-0000-0000-0000-000000000050",
+            "quiz_id": "{{quiz_id_1}}",
             "user_answer": "겠냐?",
             "is_correct": true
           },
           {
-            "quiz_id": "00000000-0000-0000-0000-000000000051",
+            "quiz_id": "{{quiz_id_2}}",
             "user_answer": "casual",
-            "is_correct": true
-          },
-          {
-            "quiz_id": "00000000-0000-0000-0000-000000000052",
-            "user_answer": "무슨 소리야",
             "is_correct": true
           }
         ]

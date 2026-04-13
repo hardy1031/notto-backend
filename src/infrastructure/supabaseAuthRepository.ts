@@ -1,5 +1,5 @@
 import { ConflictError, DBError } from "../errors/index.ts"
-import { supabase } from "./supabaseClient.ts"
+import { supabase, supabaseAnon } from "./supabaseClient.ts"
 import type { AuthRepository, AuthUser } from "../repositories/authRepository.ts"
 
 export class SupabaseAuthRepository implements AuthRepository {
@@ -36,7 +36,7 @@ export class SupabaseAuthRepository implements AuthRepository {
 
     if (updateError) throw new DBError(updateError.message)
 
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
       email: params.email,
       password: params.password,
     })
@@ -71,7 +71,7 @@ export class SupabaseAuthRepository implements AuthRepository {
     email: string,
     password: string
   ): Promise<{ token: string; user: AuthUser }> {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabaseAnon.auth.signInWithPassword({ email, password })
 
     if (error) throw new DBError(error.message)
 
@@ -86,7 +86,10 @@ export class SupabaseAuthRepository implements AuthRepository {
       .eq("id", userId)
       .single()
 
-    if (userError) throw new DBError(userError.message)
+    if (userError) {
+      console.error("userError details:", JSON.stringify(userError))
+      throw new DBError(userError.message)
+    }
 
     return {
       token,

@@ -13,7 +13,7 @@ http:
     type: json
     data: |-
       {
-        "context_object_id": "00000000-0000-0000-0000-000000000040",
+        "context_object_id": "{{context_object_id}}",
         "question": "How is 겠냐 different from 겠어?"
       }
 

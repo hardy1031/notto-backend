@@ -32,6 +32,21 @@ http:
         ]
       }
 
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201 && res.body.generated && res.body.generated.length > 0) {
+          const first = res.body.generated[0];
+          bru.setEnvVar("context_object_id", first.context_object.id);
+          if (first.quizzes && first.quizzes.length > 0) {
+            bru.setEnvVar("quiz_id_1", first.quizzes[0].id);
+          }
+          if (first.quizzes && first.quizzes.length > 1) {
+            bru.setEnvVar("quiz_id_2", first.quizzes[1].id);
+          }
+        }
+
 settings:
   encodeUrl: true
   timeout: 0

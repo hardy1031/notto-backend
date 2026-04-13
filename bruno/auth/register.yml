@@ -10,12 +10,20 @@ http:
     type: json
     data: |-
       {
-        "user_name": "testuser",
-        "email": "test@example.com",
-        "password": "password123",
-        "first_language": "ja",
-        "target_language": "ko"
+        "user_name": "{{test_user_name}}",
+        "email": "{{test_email}}",
+        "password": "{{test_password}}",
+        "first_language": "{{test_first_language}}",
+        "target_language": "{{test_target_language}}"
       }
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201) {
+          bru.setEnvVar("token", res.body.token);
+        }
 
 settings:
   encodeUrl: true

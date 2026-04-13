@@ -1,4 +1,22 @@
 name: local
 variables:
+  - name: base_url
+    value: http://localhost:3000
+  - name: test_email
+    value: test@example.com
+  - name: test_password
+    value: password123
+  - name: test_user_name
+    value: testuser
+  - name: test_first_language
+    value: ja
+  - name: test_target_language
+    value: ko
+  - name: context_object_id
+    value: ""
+  - name: quiz_id_1
+    value: ""
+  - name: quiz_id_2
+    value: ""
   - name: token
-    value: eyJhbGciOiJFUzI1NiIsImtpZCI6ImI4MTI2OWYxLTIxZDgtNGYyZS1iNzE5LWMyMjQwYTg0MGQ5MCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiJjMDJhYTQ2NC1iYjlkLTQ3ZTQtYWRlYi1iZmIyZWQ1M2M1YjkiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc2MDQ1Njk2LCJpYXQiOjE3NzYwNDIwOTYsImVtYWlsIjoidGVzdEBleGFtcGxlLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc2MDQyMDk2fV0sInNlc3Npb25faWQiOiJkNmYxMGYzNC1hZWY5LTRhMDItYmFkYy1kNDEyMzIyYTg3OWEiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.cqs0VjQkbCyQGgeFHD6Mr3NLyNn9ONzchu9dsj_TSi-PG7B0f16_fUwgrRdT4ICsmIhR_OU6ns8leXKzUcnEog
+    value: eyJhbGciOiJFUzI1NiIsImtpZCI6ImI4MTI2OWYxLTIxZDgtNGYyZS1iNzE5LWMyMjQwYTg0MGQ5MCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiI5ZTk5NjdmOS05ZGMxLTQyZDQtODVhNy03NGFmMWMzYWEwM2QiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc2MDUxNjI2LCJpYXQiOjE3NzYwNDgwMjYsImVtYWlsIjoidGVzdEBleGFtcGxlLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc2MDQ4MDI2fV0sInNlc3Npb25faWQiOiI4NWU4YTc2MS1mYzA5LTRkMTYtODBkMy01MmU2N2JkOTU1M2UiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.WZzxTV_9GL5dmO_um073qGuJLZUO7cVVf7w3aFxxfV3l5ZzkWX2Hpse1KW978zhTXqTDX1yAOrnoHi7au__AVA
