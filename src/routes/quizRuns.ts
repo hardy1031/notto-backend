@@ -27,6 +27,7 @@ quizRunsRouter.get("/", async (c) => {
         id: r.id,
         quiz_run_id: r.quizRunId,
         quiz_id: r.quizId,
+        choices: r.choices,
         user_answer: r.userAnswer,
         is_correct: r.isCorrect,
         created_at: r.createdAt.toISOString(),
@@ -45,6 +46,7 @@ quizRunsRouter.post(
       records: z.array(
         z.object({
           quiz_id: z.string().uuid(),
+          choices: z.array(z.string()).length(4),
           user_answer: z.string(),
           is_correct: z.boolean(),
         })
@@ -62,6 +64,7 @@ quizRunsRouter.post(
         completedAt: body.completed_at ? new Date(body.completed_at) : null,
         records: body.records.map((record) => ({
           quizId: record.quiz_id,
+          choices: record.choices,
           userAnswer: record.user_answer,
           isCorrect: record.is_correct,
         })),
@@ -86,6 +89,7 @@ quizRunsRouter.post(
           id: quizRecord.id,
           quiz_run_id: quizRecord.quizRunId,
           quiz_id: quizRecord.quizId,
+          choices: quizRecord.choices,
           user_answer: quizRecord.userAnswer,
           is_correct: quizRecord.isCorrect,
           created_at: quizRecord.createdAt.toISOString(),

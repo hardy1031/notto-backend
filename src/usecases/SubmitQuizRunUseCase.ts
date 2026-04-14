@@ -9,6 +9,7 @@ export type SubmitQuizRunInput = {
   completedAt: Date | null
   records: {
     quizId: string
+    choices: string[]
     userAnswer: string
     isCorrect: boolean
   }[]
@@ -45,6 +46,7 @@ export async function SubmitQuizRunUseCase(
     id: crypto.randomUUID(),
     quizRunId: quizRun.id,
     quizId: record.quizId,
+    choices: record.choices,
     userAnswer: record.userAnswer,
     isCorrect: record.isCorrect,
     createdAt: now,

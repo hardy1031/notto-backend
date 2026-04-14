@@ -17,8 +17,9 @@ function toQuizRecord(row: Record<string, unknown>): QuizRecord {
     id: row.id as string,
     quizRunId: row.quiz_run_id as string,
     quizId: row.quiz_id as string,
-    userAnswer: row.user_answer as string,
-    isCorrect: row.is_correct as boolean,
+    choices: row.choices as string[],
+    userAnswer: (row.user_answer as string) ?? null,
+    isCorrect: (row.is_correct as boolean) ?? null,
     createdAt: new Date(row.created_at as string),
   }
 }
@@ -98,6 +99,7 @@ export class SupabaseQuizRunRepository implements QuizRunRepository {
           id: r.id,
           quiz_run_id: r.quizRunId,
           quiz_id: r.quizId,
+          choices: r.choices,
           user_answer: r.userAnswer,
           is_correct: r.isCorrect,
           created_at: r.createdAt.toISOString(),

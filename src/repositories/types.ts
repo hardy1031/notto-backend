@@ -60,8 +60,9 @@ export type QuizRecord = {
   id: string
   quizRunId: string
   quizId: string
-  userAnswer: string
-  isCorrect: boolean
+  choices: string[]
+  userAnswer: string | null
+  isCorrect: boolean | null
   createdAt: Date
 }
 
