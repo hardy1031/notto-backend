@@ -1,11 +1,11 @@
 info:
-  name: interpret
+  name: quizzes
   type: http
   seq: 1
 
 http:
   method: POST
-  url: http://localhost:3000/interpret
+  url: http://localhost:3000/quizzes
   auth:
     type: bearer
     token: "{{token}}"

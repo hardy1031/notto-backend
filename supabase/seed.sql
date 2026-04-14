@@ -1,6 +1,5 @@
 -- No seed data. Test data is created via API requests.
 -- Use Bruno collection to set up test data:
 --   1. POST /auth/register → get token and user_id
---   2. POST /sync → create notebooks, notes
---   3. POST /interpret → generate context_objects and quizzes
---   4. POST /quiz-runs → submit a quiz run
+--   2. POST /quizzes → sync notebooks/notes and generate context_objects and quizzes
+--   3. POST /quiz-runs → submit a quiz run
