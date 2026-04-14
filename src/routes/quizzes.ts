@@ -128,7 +128,7 @@ quizzesRouter.post(
             type: q.type,
             question_sentence: q.questionSentence,
             answer: q.answer,
-            choices: q.choices,
+            choice_pool: q.choicePool,
             created_at: q.createdAt.toISOString(),
             updated_at: q.updatedAt.toISOString(),
           })),

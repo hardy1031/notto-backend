@@ -48,7 +48,7 @@ export class MockAIRepository implements AIRepository {
         type: "choose_context",
         questionSentence: `Which situation best fits the expression "${co.expression}"?`,
         answer: co.actualNuance,
-        choices: [
+        choicePool: [
           co.actualNuance,
           "Used in formal business settings only",
           "A polite way to greet someone for the first time",
@@ -66,7 +66,7 @@ export class MockAIRepository implements AIRepository {
         type: "fill_metadata",
         questionSentence: `What is the base meaning of "${co.expression}"?`,
         answer: co.baseMeaning,
-        choices: [
+        choicePool: [
           co.baseMeaning,
           "To express strong disagreement",
           "A formal greeting phrase",

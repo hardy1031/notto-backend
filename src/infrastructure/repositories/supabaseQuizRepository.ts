@@ -10,7 +10,7 @@ function toQuiz(row: Record<string, unknown>): Quiz {
     type: row.type as Quiz["type"],
     questionSentence: row.question_sentence as string,
     answer: row.answer as string,
-    choices: row.choices as string[],
+    choicePool: row.choice_pool as string[],
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
   }
@@ -57,7 +57,7 @@ export class SupabaseQuizRepository implements QuizRepository {
         type: q.type,
         question_sentence: q.questionSentence,
         answer: q.answer,
-        choices: q.choices,
+        choice_pool: q.choicePool,
         created_at: q.createdAt.toISOString(),
         updated_at: q.updatedAt.toISOString(),
       }))
