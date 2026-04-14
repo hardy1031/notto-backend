@@ -30,6 +30,15 @@ export class SupabaseContextObjectRepository implements ContextObjectRepository 
     return (data ?? []).map(toContextObject)
   }
 
+  async findByUserId(userId: string): Promise<ContextObject[]> {
+    const { data, error } = await supabase
+      .from("context_objects")
+      .select("*, note_pieces!inner(notes!inner(notebooks!inner(user_id)))")
+      .eq("note_pieces.notes.notebooks.user_id", userId)
+    if (error) throw new DBError(error.message)
+    return (data ?? []).map(toContextObject)
+  }
+
   async findWithoutQuizzes(noteIds: string[]): Promise<ContextObject[]> {
     const { data, error } = await supabase
       .from("context_objects")

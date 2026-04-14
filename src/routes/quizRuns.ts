@@ -11,6 +11,30 @@ export const quizRunsRouter = new Hono<{ Variables: AppVariables }>()
 
 quizRunsRouter.use("*", authMiddleware)
 
+quizRunsRouter.get("/", async (c) => {
+  const userId = c.get("userId")
+
+  const quizRunRepo = new SupabaseQuizRunRepository()
+  const quizRunsWithRecords = await quizRunRepo.findByUserId(userId)
+
+  return c.json(
+    quizRunsWithRecords.map(({ quizRun, quizRecords }) => ({
+      id: quizRun.id,
+      user_id: quizRun.userId,
+      started_at: quizRun.startedAt.toISOString(),
+      completed_at: quizRun.completedAt ? quizRun.completedAt.toISOString() : null,
+      records: quizRecords.map((r) => ({
+        id: r.id,
+        quiz_run_id: r.quizRunId,
+        quiz_id: r.quizId,
+        user_answer: r.userAnswer,
+        is_correct: r.isCorrect,
+        created_at: r.createdAt.toISOString(),
+      })),
+    }))
+  )
+})
+
 quizRunsRouter.post(
   "/",
   zValidator(

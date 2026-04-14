@@ -54,8 +54,8 @@ export type SyncQuizRunInput = {
 
 export type SyncInput = {
   userId: string
-  notebooks: SyncNotebookInput[]
-  notes: SyncNoteInput[]
+  notebooks?: SyncNotebookInput[]
+  notes?: SyncNoteInput[]
   quizRuns?: SyncQuizRunInput[]
 }
 
@@ -84,14 +84,14 @@ export async function SyncUseCase(
   const { userId } = input
 
   // sync notebooks from client to server (LWW by updatedAt)
-  const clientNotebookIds = input.notebooks.map((notebook) => notebook.id)
+  const clientNotebookIds = (input.notebooks ?? []).map((notebook) => notebook.id)
   const existingNotebooks =
     clientNotebookIds.length > 0
       ? await deps.notebookRepo.findByUserIdAndIds(userId, clientNotebookIds)
       : []
   const existingNotebookMap = new Map(existingNotebooks.map((notebook) => [notebook.id, notebook]))
 
-  for (const notebook of input.notebooks) {
+  for (const notebook of input.notebooks ?? []) {
     const existing = existingNotebookMap.get(notebook.id)
     if (!existing) {
       // create notebook if not exists on server
@@ -109,14 +109,14 @@ export async function SyncUseCase(
   }
 
   // sync notes from client to server (LWW by updatedAt)
-  const clientNoteIds = input.notes.map((note) => note.id)
+  const clientNoteIds = (input.notes ?? []).map((note) => note.id)
   const existingNotes =
     clientNoteIds.length > 0 ? await deps.noteRepo.findByUserIdAndIds(userId, clientNoteIds) : []
   const existingNoteMap = new Map(existingNotes.map((note) => [note.id, note]))
 
   const syncedNoteIds: string[] = []
 
-  for (const note of input.notes) {
+  for (const note of input.notes ?? []) {
     const existing = existingNoteMap.get(note.id)
     const s3Key = note.s3Key || `${userId}/${note.notebookId}/${note.id}.md`
 
@@ -183,11 +183,11 @@ export async function SyncUseCase(
 
   // fetch server-side data that the client does not have yet
   const serverNotebooks = await deps.notebookRepo.findByUserId(userId)
-  const clientNotebookIdSet = new Set(input.notebooks.map((notebook) => notebook.id))
+  const clientNotebookIdSet = new Set((input.notebooks ?? []).map((notebook) => notebook.id))
   const newNotebooks = serverNotebooks.filter((notebook) => !clientNotebookIdSet.has(notebook.id))
 
   const serverNotes = await deps.noteRepo.findByUserId(userId)
-  const clientNoteIdSet = new Set(input.notes.map((note) => note.id))
+  const clientNoteIdSet = new Set((input.notes ?? []).map((note) => note.id))
   const newNotes = serverNotes.filter((note) => !clientNoteIdSet.has(note.id))
 
   const allServerNoteIds = serverNotes.map((note) => note.id)

@@ -1,17 +1,17 @@
 import { Hono } from "hono"
 import { AIUnavailableError, ConflictError, ForbiddenError, NotFoundError } from "./errors/index.ts"
 import { authRouter } from "./routes/auth.ts"
-import { interpretRouter } from "./routes/interpret.ts"
+import { contextObjectsRouter } from "./routes/contextObjects.ts"
 import { learnRouter } from "./routes/learn.ts"
 import { quizRunsRouter } from "./routes/quizRuns.ts"
-import { syncRouter } from "./routes/sync.ts"
+import { quizzesRouter } from "./routes/quizzes.ts"
 
 const app = new Hono()
 
 app.route("/auth", authRouter)
-app.route("/sync", syncRouter)
-app.route("/interpret", interpretRouter)
+app.route("/context-objects", contextObjectsRouter)
 app.route("/quiz-runs", quizRunsRouter)
+app.route("/quizzes", quizzesRouter)
 app.route("/learn", learnRouter)
 
 app.onError((err, c) => {

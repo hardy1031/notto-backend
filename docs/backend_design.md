@@ -204,8 +204,9 @@ Ask the AI a follow-up question about an expression. Transient — not persisted
 |--------|------|----------|------|
 | POST | `/auth/register` | `RegisterUseCase` | No |
 | POST | `/auth/login` | `LoginUseCase` | No |
-| POST | `/sync` | `SyncUseCase` | JWT |
-| POST | `/interpret` | `SyncUseCase` → `GenerateQuizzesUseCase` | JWT |
+| GET  | `/context-objects` | Fetch all context objects for the user | JWT |
+| GET  | `/quiz-runs` | Fetch all quiz runs for the user | JWT |
+| POST | `/quizzes` | `SyncUseCase` → `GenerateQuizzesUseCase` | JWT |
 | POST | `/quiz-runs` | `SubmitQuizRunUseCase` | JWT |
 | POST | `/learn` | `LearnUseCase` | JWT |
 

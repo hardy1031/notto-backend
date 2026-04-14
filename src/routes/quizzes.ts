@@ -15,11 +15,11 @@ import type { AppVariables } from "../types/hono.ts"
 import { GenerateQuizzesUseCase } from "../usecases/GenerateQuizzesUseCase.ts"
 import { SyncUseCase } from "../usecases/SyncUseCase.ts"
 
-export const interpretRouter = new Hono<{ Variables: AppVariables }>()
+export const quizzesRouter = new Hono<{ Variables: AppVariables }>()
 
-interpretRouter.use("*", authMiddleware)
+quizzesRouter.use("*", authMiddleware)
 
-interpretRouter.post(
+quizzesRouter.post(
   "/",
   zValidator(
     "json",
