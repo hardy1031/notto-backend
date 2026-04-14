@@ -79,6 +79,7 @@ CREATE TABLE public.quizzes (
   type VARCHAR(50) NOT NULL,
   question_sentence TEXT NOT NULL,
   answer TEXT NOT NULL,
+  choices JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );

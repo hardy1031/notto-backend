@@ -48,12 +48,36 @@ export class MockAIRepository implements AIRepository {
         type: "choose_context",
         questionSentence: `Which situation best fits the expression "${co.expression}"?`,
         answer: co.actualNuance,
+        choices: [
+          co.actualNuance,
+          "Used in formal business settings only",
+          "A polite way to greet someone for the first time",
+          "An expression of surprise or shock",
+          "Used to show disagreement or refusal",
+          "A casual way to say goodbye",
+          "An expression of gratitude",
+          "Used to ask for permission",
+          "A way to express uncertainty",
+          "Used only in written communication",
+        ],
       })
       quizzes.push({
         contextObjectIndex: i,
         type: "fill_metadata",
         questionSentence: `What is the base meaning of "${co.expression}"?`,
         answer: co.baseMeaning,
+        choices: [
+          co.baseMeaning,
+          "To express strong disagreement",
+          "A formal greeting phrase",
+          "An expression of gratitude",
+          "To indicate completion of a task",
+          "A way to show surprise",
+          "To make a polite request",
+          "An informal farewell",
+          "To express confusion",
+          "A term used in professional contexts",
+        ],
       })
     }
     return quizzes

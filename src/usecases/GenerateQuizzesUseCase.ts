@@ -76,6 +76,7 @@ export async function GenerateQuizzesUseCase(
       type: generatedQuizItem.type,
       questionSentence: generatedQuizItem.questionSentence,
       answer: generatedQuizItem.answer,
+      choices: generatedQuizItem.choices,
       createdAt: now,
       updatedAt: now,
     }

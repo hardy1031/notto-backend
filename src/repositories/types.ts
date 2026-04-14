@@ -44,6 +44,7 @@ export type Quiz = {
   type: QuizType
   questionSentence: string
   answer: string
+  choices: string[]
   createdAt: Date
   updatedAt: Date
 }
@@ -84,6 +85,7 @@ export type GeneratedQuiz = {
   type: QuizType
   questionSentence: string
   answer: string
+  choices: string[]
 }
 
 export type AILearnResponse = {

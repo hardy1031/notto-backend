@@ -9,10 +9,13 @@ Return a JSON object:
       "context_object_index": 0,
       "type": "choose_context | choose_pronunciation | fill_metadata",
       "question_sentence": "the question text",
-      "answer": "the correct answer"
+      "answer": "the correct answer",
+      "choices": ["the correct answer", "distractor 1", "distractor 2", "distractor 3", "distractor 4", "distractor 5", "distractor 6", "distractor 7", "distractor 8", "distractor 9"]
     }
   ]
 }
+
+The "choices" array must contain exactly 10 strings. The correct answer must be included among the choices. The other 9 choices should be plausible but incorrect distractors appropriate to the quiz type.
 
 Quiz types:
 - choose_context: Test understanding of when/how to use the expression

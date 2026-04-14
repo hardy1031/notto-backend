@@ -89,6 +89,7 @@ function serializeQuiz(quiz: Quiz) {
     type: quiz.type,
     question_sentence: quiz.questionSentence,
     answer: quiz.answer,
+    choices: quiz.choices,
     created_at: quiz.createdAt.toISOString(),
     updated_at: quiz.updatedAt.toISOString(),
   }
