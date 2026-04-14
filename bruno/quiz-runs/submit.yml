@@ -18,11 +18,13 @@ http:
         "records": [
           {
             "quiz_id": "{{quiz_id_1}}",
+            "choices": ["option1", "option2", "option3", "option4"],
             "user_answer": "겠냐?",
             "is_correct": true
           },
           {
             "quiz_id": "{{quiz_id_2}}",
+            "choices": ["option1", "option2", "option3", "option4"],
             "user_answer": "casual",
             "is_correct": true
           }

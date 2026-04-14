@@ -79,7 +79,7 @@ CREATE TABLE public.quizzes (
   type VARCHAR(50) NOT NULL,
   question_sentence TEXT NOT NULL,
   answer TEXT NOT NULL,
-  choices JSONB NOT NULL,
+  choice_pool JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
@@ -101,8 +101,9 @@ CREATE TABLE public.quiz_records (
   id UUID PRIMARY KEY,
   quiz_run_id UUID NOT NULL REFERENCES public.quiz_runs(id) ON DELETE CASCADE,
   quiz_id UUID NOT NULL REFERENCES public.quizzes(id) ON DELETE CASCADE,
-  user_answer TEXT NOT NULL,
-  is_correct BOOLEAN NOT NULL,
+  choices JSONB NOT NULL,
+  user_answer TEXT,
+  is_correct BOOLEAN,
   created_at TIMESTAMPTZ NOT NULL
 );
 
