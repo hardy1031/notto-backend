@@ -25,9 +25,7 @@ const quizRunRepo = new SupabaseQuizRunRepository()
 const deps = { notebookRepo, noteRepo, notePieceRepo, noteStorage, contextObjectRepo, quizRepo, quizRunRepo }
 
 async function cleanupUser() {
-  // Delete by fixed ID (fast path)
   await supabase.auth.admin.deleteUser(TEST_USER_ID)
-  // Also delete by email in case a prior run created the user with a different ID
   const { data } = await supabase.auth.admin.listUsers()
   const stale = data?.users?.find((u) => u.email === TEST_EMAIL)
   if (stale) await supabase.auth.admin.deleteUser(stale.id)
@@ -68,7 +66,7 @@ describe("SyncUseCase — notebooks", () => {
 
     const notebooks = await notebookRepo.findByUserId(TEST_USER_ID)
     expect(notebooks).toHaveLength(1)
-    expect(notebooks[0].name).toBe("スラング")
+    expect(notebooks[0]!.name).toBe("スラング")
   })
 
   it("updates notebook when client version is newer", async () => {
@@ -77,7 +75,6 @@ describe("SyncUseCase — notebooks", () => {
     const originalUpdatedAt = new Date("2026-01-01T00:00:00Z")
     const newerUpdatedAt = new Date("2026-01-02T00:00:00Z")
 
-    // create initial notebook
     await SyncUseCase(
       {
         userId: TEST_USER_ID,
@@ -87,7 +84,6 @@ describe("SyncUseCase — notebooks", () => {
       deps
     )
 
-    // sync with newer updated_at
     await SyncUseCase(
       {
         userId: TEST_USER_ID,
@@ -98,7 +94,7 @@ describe("SyncUseCase — notebooks", () => {
     )
 
     const notebooks = await notebookRepo.findByUserId(TEST_USER_ID)
-    expect(notebooks[0].name).toBe("updated")
+    expect(notebooks[0]!.name).toBe("updated")
   })
 
   it("skips notebook when updated_at is the same", async () => {
@@ -124,7 +120,7 @@ describe("SyncUseCase — notebooks", () => {
     )
 
     const notebooks = await notebookRepo.findByUserId(TEST_USER_ID)
-    expect(notebooks[0].name).toBe("original")
+    expect(notebooks[0]!.name).toBe("original")
   })
 })
 
@@ -132,7 +128,6 @@ describe("SyncUseCase — notes", () => {
   const notebookId = "aaaaaaaa-0000-0000-0000-000000000010"
 
   beforeEach(async () => {
-    // create notebook first (notes require a notebook)
     await SyncUseCase(
       {
         userId: TEST_USER_ID,
@@ -143,7 +138,7 @@ describe("SyncUseCase — notes", () => {
     )
   })
 
-  it("creates note and note_piece when note does not exist on server", async () => {
+  it("creates note and note_pieces when note does not exist on server", async () => {
     const noteId = "bbbbbbbb-0000-0000-0000-000000000001"
 
     const result = await SyncUseCase(
@@ -153,8 +148,7 @@ describe("SyncUseCase — notes", () => {
         notes: [{
           id: noteId,
           notebookId,
-          s3Key: `${TEST_USER_ID}/${notebookId}/${noteId}.md`,
-          content: "겠냐?",
+          content: "- 겠냐? :: rough dismissive question\n- 나중에 :: see you later",
           createdAt: new Date(),
           updatedAt: new Date(),
         }],
@@ -165,11 +159,10 @@ describe("SyncUseCase — notes", () => {
     expect(result.syncedNoteIds).toContain(noteId)
 
     const pieces = await notePieceRepo.findByNoteIds([noteId])
-    expect(pieces).toHaveLength(1)
-    expect(pieces[0].order).toBe(1)
+    expect(pieces).toHaveLength(2)
   })
 
-  it("updates note and replaces note_piece when client version is newer", async () => {
+  it("updates note and replaces note_pieces when client version is newer", async () => {
     const noteId = "bbbbbbbb-0000-0000-0000-000000000002"
     const originalUpdatedAt = new Date("2026-01-01T00:00:00Z")
     const newerUpdatedAt = new Date("2026-01-02T00:00:00Z")
@@ -181,8 +174,7 @@ describe("SyncUseCase — notes", () => {
         notes: [{
           id: noteId,
           notebookId,
-          s3Key: `${TEST_USER_ID}/${notebookId}/${noteId}.md`,
-          content: "original content",
+          content: "- 겠냐? :: rough dismissive question",
           createdAt: originalUpdatedAt,
           updatedAt: originalUpdatedAt,
         }],
@@ -191,7 +183,7 @@ describe("SyncUseCase — notes", () => {
     )
 
     const piecesBeforeUpdate = await notePieceRepo.findByNoteIds([noteId])
-    const originalPieceId = piecesBeforeUpdate[0].id
+    const originalPieceId = piecesBeforeUpdate[0]!.id
 
     await SyncUseCase(
       {
@@ -200,8 +192,7 @@ describe("SyncUseCase — notes", () => {
         notes: [{
           id: noteId,
           notebookId,
-          s3Key: `${TEST_USER_ID}/${notebookId}/${noteId}.md`,
-          content: "updated content",
+          content: "- 나중에 :: see you later\n- 화이팅 :: do your best",
           createdAt: originalUpdatedAt,
           updatedAt: newerUpdatedAt,
         }],
@@ -210,9 +201,8 @@ describe("SyncUseCase — notes", () => {
     )
 
     const piecesAfterUpdate = await notePieceRepo.findByNoteIds([noteId])
-    expect(piecesAfterUpdate).toHaveLength(1)
-    // old piece replaced with new one
-    expect(piecesAfterUpdate[0].id).not.toBe(originalPieceId)
+    expect(piecesAfterUpdate).toHaveLength(2)
+    expect(piecesAfterUpdate.every((p) => p.id !== originalPieceId)).toBe(true)
   })
 
   it("skips note when updated_at is the same", async () => {
@@ -226,8 +216,7 @@ describe("SyncUseCase — notes", () => {
         notes: [{
           id: noteId,
           notebookId,
-          s3Key: `${TEST_USER_ID}/${notebookId}/${noteId}.md`,
-          content: "original",
+          content: "- 겠냐? :: rough dismissive question",
           createdAt: updatedAt,
           updatedAt,
         }],
@@ -242,8 +231,7 @@ describe("SyncUseCase — notes", () => {
         notes: [{
           id: noteId,
           notebookId,
-          s3Key: `${TEST_USER_ID}/${notebookId}/${noteId}.md`,
-          content: "should not update",
+          content: "- should not update :: this content",
           createdAt: updatedAt,
           updatedAt,
         }],

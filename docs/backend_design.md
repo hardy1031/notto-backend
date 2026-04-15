@@ -46,7 +46,7 @@ SyncUseCase
 
 Domain Layer contains operations that can be described in business terms — actions that have meaning to the domain regardless of how they are implemented.
 
-- `generateContextObjects` → "interpret a note and produce context objects" — a business concept ✅
+- `generateContextObject` → "interpret a note piece and produce a context object" — a business concept ✅
 - `createNotebook` → "create a notebook entity" — a business concept ✅
 - `findById` → "fetch a record by ID from the DB" — a system concern ❌ → belongs in Repository
 
@@ -63,7 +63,7 @@ The answer depends on whether the judgment belongs to the **entity** or to the *
 
 Pushing this kind of conditional into the Domain Layer (e.g. as `upsertNotebook`) hides business logic inside an entity operation, making it harder to understand what the use case is actually doing.
 
-In Notto: `generateContextObjects` and `generateQuizzes` are Business Logic — they each call the AI API and return a result. `GenerateQuizzesUseCase` is the Use Case that calls both in order and persists the results to the DB.
+In Notto: `generateContextObject` and `generateQuizzes` are Business Logic — they each call the AI API and return a result. `GenerateQuizzesUseCase` is the Use Case that calls both in order and persists the results to the DB.
 
 ---
 
@@ -92,7 +92,7 @@ In Notto: `generateContextObjects` and `generateQuizzes` are Business Logic — 
 
 | Function | Description |
 |---------|------|
-| `generateContextObjects` | Send note content to AI (via interface) and return generated context objects (expression, nuance, tone, example dialogue, etc.) |
+| `generateContextObject` | Send a note piece to AI (via interface) and return the generated context object (expression, nuance, tone, example dialogue, etc.) |
 | `findUninterpretedPieces` | Given a list of note_pieces and existing context objects, return the pieces that have no context object yet (matched by `note_piece_id`). These are the pieces to send to AI for generation |
 
 ### Quiz
@@ -131,7 +131,7 @@ User login.
 
 ### `SyncUseCase`
 
-Bidirectional sync of all resources. Used by both `POST /sync` (full sync on startup) and `POST /interpret` (notebooks + notes only before generation).
+Syncs notebooks and notes from client to server (client → server, LWW by `updated_at`). Also returns notebooks and notes that exist on the server but not on the client. Called from `POST /sync/notebooks`.
 
 ```
 1. For each notebook:
@@ -139,10 +139,11 @@ Bidirectional sync of all resources. Used by both `POST /sync` (full sync on sta
    ├─ Client is newer       → updateNotebook
    └─ Same updated_at       → skip
 2. For each note:
-   ├─ Does not exist        → uploadNoteContent → createNote
-   ├─ Client is newer       → uploadNoteContent → updateNote → parse note_pieces → delete note_pieces with no matching context object (quizzes removed via CASCADE) → upsert note_pieces
+   ├─ Does not exist        → uploadNoteContent → createNote → upsert note_pieces
+   ├─ Client is newer       → uploadNoteContent → updateNote → delete note_pieces → upsert note_pieces
    └─ Same updated_at       → skip
-3. Return IDs of new or updated notes
+3. Fetch notebooks and notes the server has that the client does not
+4. Return { newNotebooks, newNotes, syncedNoteIds }
 ```
 
 Sync rules:
@@ -152,27 +153,28 @@ Sync rules:
 | Does not exist | Notebook | Create |
 | Exists, same `updated_at` | Notebook | Skip |
 | Exists, client is newer | Notebook | Update |
-| Does not exist | Note | Create + upload to S3 |
-| Exists, same `updated_at` | Note | Skip (no re-generation) |
-| Exists, client is newer | Note | Upload new content → update note → parse note_pieces → delete removed pieces (context objects + quizzes via CASCADE) → upsert note_pieces → mark for re-generation |
+| Does not exist | Note | Create + upload to S3 + upsert note_pieces |
+| Exists, same `updated_at` | Note | Skip |
+| Exists, client is newer | Note | Upload new content → update note → delete note_pieces (context objects + quizzes removed via CASCADE) → upsert note_pieces → mark for re-generation |
 
 ### `GenerateQuizzesUseCase`
 
-Generate and save context objects and quizzes from new or updated notes.
+Generates context objects and quizzes for uninterpreted note pieces via AI. Returns all context objects and quizzes the client does not yet have. Called from `POST /sync/quizzes`.
 
 ```
-1. notePieceRepository.findByNoteIds(noteIds) → get all note_pieces
-2. contextObjectRepository.findByNoteIds(noteIds) → get existing context objects
+1. notePieceRepository.findByUserId → get all note_pieces for the user
+2. contextObjectRepository.findByUserId → get all existing context objects
 3. findUninterpretedPieces(notePieces, existingContextObjects) → pieces with no context object yet
-4. generateContextObjects(uninterpreted pieces) → AI generates new context objects
+4. generateContextObject(each uninterpreted piece) → AI generates context objects
 5. contextObjectRepository.bulkCreate
-6. contextObjectRepository.findWithoutQuizzes(noteIds) → context objects that have no quizzes yet
-7. generateQuizzes (AI → generate quizzes from step 6)
+6. contextObjectRepository.findWithoutQuizzes → context objects with no quizzes yet
+7. generateQuizzes(AI) → generate quizzes
 8. quizRepository.bulkCreate
-9. Return generated results
+9. Diff all server-side context objects and quizzes against the IDs the client sent
+10. Return { contextObjects, quizzes } that server has but client does not
 ```
 
-The response from `POST /interpret` contains only newly generated context objects and quizzes. Client saves these into local DB.
+The client sends the IDs of context objects and quizzes it already has. The server returns only the ones the client is missing — including newly generated ones and any from other devices.
 
 ### `SubmitQuizRunUseCase`
 
@@ -204,11 +206,12 @@ Ask the AI a follow-up question about an expression. Transient — not persisted
 |--------|------|----------|------|
 | POST | `/auth/register` | `RegisterUseCase` | No |
 | POST | `/auth/login` | `LoginUseCase` | No |
-| GET  | `/context-objects` | Fetch all context objects for the user | JWT |
-| GET  | `/quiz-runs` | Fetch all quiz runs for the user | JWT |
-| POST | `/quizzes` | `SyncUseCase` → `GenerateQuizzesUseCase` | JWT |
-| POST | `/quiz-runs` | `SubmitQuizRunUseCase` | JWT |
+| POST | `/sync/notebooks` | `SyncUseCase` | JWT |
+| POST | `/sync/quizzes` | `GenerateQuizzesUseCase` | JWT |
+| POST | `/sync/quiz-runs` | `SubmitQuizRunUseCase` | JWT |
 | POST | `/learn` | `LearnUseCase` | JWT |
+
+Endpoints follow a **sync-first** design — see [ADR-016](../Notto-docs/docs/adr/016-sync-first-endpoints.md). There are no standalone GET endpoints for user data. Each sync endpoint receives what the client currently has and returns what the client is missing.
 
 ### Endpoint responsibilities
 
@@ -223,13 +226,15 @@ An endpoint holds no logic. It only:
 
 ## MVP Constraints
 
-### Note Pieces in MVP
+### Note Pieces
 
-In MVP, notes are treated as plain text (no markup format). The server creates **one `note_piece` per note** (`order = 1`) when a note is created or updated. All `context_objects` generated from a note reference the same `note_piece_id`.
+Notes are parsed using the following format:
 
-The `note_piece.order` column is retained in the schema for production use (where AI or markup may split a note into multiple pieces), but has no functional significance in MVP.
+```
+- expression :: annotation
+```
 
-Note piece markup format and multi-piece splitting are deferred to production, when native note capture is built.
+Each matching line becomes one `note_piece`. Lines that do not match the pattern are ignored. Parsing is done by `domain/note/parseNote.ts` on every create or update.
 
 ### AI Client in MVP
 
@@ -330,8 +335,8 @@ Investigate whether any AI API supports setting a system prompt once per session
 src/
   routes/           # Endpoint definitions (Hono router)
     auth.ts
-    sync.ts
-    interpret.ts
+    contextObjects.ts
+    quizzes.ts        # POST /quizzes: SyncUseCase → GenerateQuizzesUseCase
     quizRuns.ts
     learn.ts
   usecases/         # Use cases
@@ -341,30 +346,46 @@ src/
     GenerateQuizzesUseCase.ts
     SubmitQuizRunUseCase.ts
     LearnUseCase.ts
-  domain/           # Business logic (pure functions or classes)
-    auth/
+  domain/           # Business logic (pure functions)
     notebook/
     note/
     contextObject/
     quiz/
-    quizRun/
     learn/
-  repositories/     # DB access (abstracts differences between PostgreSQL and SQLite)
+  repositories/     # Repository interfaces (abstractions)
+    authRepository.ts
     notebookRepository.ts
     noteRepository.ts
+    notePieceRepository.ts
+    noteStorageRepository.ts
     contextObjectRepository.ts
     quizRepository.ts
     quizRunRepository.ts
+    aiRepository.ts
+    types.ts
+  infrastructure/   # External service implementations
+    repositories/   # Supabase implementations of repository interfaces
+      supabaseNotebookRepository.ts
+      supabaseNoteRepository.ts
+      supabaseNotePieceRepository.ts
+      supabaseContextObjectRepository.ts
+      supabaseQuizRepository.ts
+      supabaseQuizRunRepository.ts
+    aiClient.ts       # reads prompt files, sends to AI API with Prompt Caching enabled
+    s3Client.ts
+    supabaseClient.ts
+    supabaseAuthRepository.ts
+    mockNoteStorageRepository.ts  # MVP: mock S3 storage
   prompts/          # AI prompt templates (plain text files)
     generateContextObjects.txt
     generateQuizzes.txt
     askAI.txt         # production only
-  infrastructure/   # External service clients
-    s3Client.ts
-    aiClient.ts       # reads prompt files, sends to AI API with Prompt Caching enabled
-    supabaseClient.ts
   middleware/
     auth.ts         # JWT verification middleware
+  errors/
+    index.ts        # Domain and infra error classes
+  types/
+    hono.ts         # Hono context type extensions
   index.ts          # Entry point
 ```
 
@@ -445,14 +466,14 @@ If SyncUseCase succeeds but GenerateQuizzesUseCase fails, the AI error (`AIUnava
 
 | Decision | Reason |
 |---------|------|
-| `POST /sync` and `POST /interpret` are separate endpoints | `/sync` is called on app startup (failure OK). `/interpret` is called on generate button press. Different triggers, different failure tolerances. |
-| `POST /interpret` internally runs SyncUseCase first | Generating quizzes requires the latest notes on the server. Since interpret requires internet, sync is always possible at that point. |
-| `GET /me` is removed | Bidirectional sync via `POST /sync` replaces it. Client is responsible for merging server response into local DB. |
+| Sync-first endpoints (`POST /sync/*`) instead of REST GET | Notto is local-first. The server's role is AI generation and cross-device sync — not a primary data source. Sync endpoints are honest about what is actually happening. See [ADR-016](../Notto-docs/docs/adr/016-sync-first-endpoints.md). |
+| `POST /sync/notebooks` and `POST /sync/quizzes` are separate | Different triggers and responsibilities: notebook sync is about persisting user content; quiz sync is about AI generation. Splitting makes each endpoint's resource boundary clear. |
+| `POST /sync/notebooks` runs before `POST /sync/quizzes` | Generating quizzes requires the latest notes to be on the server. The client calls them in sequence. |
 | Client generates UUIDs for notebooks and notes | These are created offline, so IDs must exist before reaching the server. |
 | Server generates UUIDs for context objects, quizzes, and quiz runs | These are artifacts created server-side (AI generation, run submission), so the server owns their IDs. |
 | Client evaluates `is_correct`, server trusts it | Correct/incorrect logic belongs to the client. The server acts as a storage layer only. |
 | `POST /learn` response is not persisted | Persisting conversational AI interactions would grow storage unnecessarily. Client may cache locally if needed. |
-| `POST /sync` response is flat arrays | Easier for the client to INSERT directly into SQLite tables. Client reconstructs relationships via foreign keys. |
+| Sync responses are flat arrays | Easier for the client to INSERT directly into SQLite tables. Client reconstructs relationships via foreign keys. |
 
 ---
 

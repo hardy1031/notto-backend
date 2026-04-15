@@ -19,8 +19,16 @@ export type Note = {
 export type NotePiece = {
   id: string
   noteId: string
-  order: number
   createdAt: Date
+}
+
+export type ParsedNote = {
+  noteId: string
+  pieces: {
+    notePieceId: string
+    expression: string
+    annotation: string
+  }[]
 }
 
 export type ContextObject = {

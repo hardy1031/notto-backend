@@ -2,19 +2,19 @@ import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { AIUnavailableError, ConflictError, ForbiddenError, NotFoundError } from "./errors/index.ts"
 import { authRouter } from "./routes/auth.ts"
-import { contextObjectsRouter } from "./routes/contextObjects.ts"
 import { learnRouter } from "./routes/learn.ts"
 import { quizRunsRouter } from "./routes/quizRuns.ts"
 import { quizzesRouter } from "./routes/quizzes.ts"
+import { syncNotebooksRouter } from "./routes/syncNotebooks.ts"
 
 const app = new Hono()
 
 app.use(cors({ origin: "http://localhost:5173" }))
 
 app.route("/auth", authRouter)
-app.route("/context-objects", contextObjectsRouter)
-app.route("/quiz-runs", quizRunsRouter)
-app.route("/quizzes", quizzesRouter)
+app.route("/sync/notebooks", syncNotebooksRouter)
+app.route("/sync/quizzes", quizzesRouter)
+app.route("/sync/quiz-runs", quizRunsRouter)
 app.route("/learn", learnRouter)
 
 app.onError((err, c) => {

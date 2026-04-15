@@ -5,7 +5,6 @@ import type { ContextObject, NotePiece } from "../../repositories/types.ts"
 const makePiece = (id: string): NotePiece => ({
   id,
   noteId: "note-1",
-  order: 1,
   createdAt: new Date(),
 })
 
