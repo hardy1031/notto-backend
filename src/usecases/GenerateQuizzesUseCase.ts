@@ -1,5 +1,5 @@
 import { findUninterpretedPieces } from "../domain/contextObject/findUninterpretedPieces.ts"
-import { generateContextObject } from "../domain/contextObject/generateContextObject.ts"
+import { generateContextObjects } from "../domain/contextObject/generateContextObject.ts"
 import { generateQuizzes } from "../domain/quiz/generateQuizzes.ts"
 import type { AIRepository } from "../repositories/aiRepository.ts"
 import type { ContextObjectRepository } from "../repositories/contextObjectRepository.ts"
@@ -56,30 +56,34 @@ export async function GenerateQuizzesUseCase(
     return parsed
   }
 
-  // generate one context object per uninterpreted piece via AI
-  const newContextObjects: ContextObject[] = []
-
+  // collect pieces with their content, then generate all context objects in one AI call
+  const piecesWithContent: { piece: (typeof uninterpretedPieces)[number]; expression: string; annotation: string }[] = []
   for (const piece of uninterpretedPieces) {
     const parsedNote = await getParsedNote(piece.noteId)
     const pieceContent = parsedNote.pieces.find((p) => p.notePieceId === piece.id)
     if (!pieceContent) continue
-    const generated = await generateContextObject(pieceContent.expression, pieceContent.annotation, deps.aiRepo)
-    const now = new Date()
-    newContextObjects.push({
-      id: crypto.randomUUID(),
-      notePieceId: piece.id,
-      noteId: piece.noteId,
-      expression: generated.expression,
-      baseMeaning: generated.baseMeaning,
-      actualNuance: generated.actualNuance,
-      tone: generated.tone,
-      formality: generated.formality,
-      isSlang: generated.isSlang,
-      exampleDialogue: generated.exampleDialogue,
-      createdAt: now,
-      updatedAt: now,
-    })
+    piecesWithContent.push({ piece, expression: pieceContent.expression, annotation: pieceContent.annotation })
   }
+
+  const generatedContextObjects = piecesWithContent.length > 0
+    ? await generateContextObjects(piecesWithContent.map((p) => ({ expression: p.expression, annotation: p.annotation })), deps.aiRepo)
+    : []
+
+  const now = new Date()
+  const newContextObjects: ContextObject[] = piecesWithContent.map((p, i) => ({
+    id: crypto.randomUUID(),
+    notePieceId: p.piece.id,
+    noteId: p.piece.noteId,
+    expression: generatedContextObjects[i]!.expression,
+    baseMeaning: generatedContextObjects[i]!.baseMeaning,
+    actualNuance: generatedContextObjects[i]!.actualNuance,
+    tone: generatedContextObjects[i]!.tone,
+    formality: generatedContextObjects[i]!.formality,
+    isSlang: generatedContextObjects[i]!.isSlang,
+    exampleDialogue: generatedContextObjects[i]!.exampleDialogue,
+    createdAt: now,
+    updatedAt: now,
+  }))
 
   if (newContextObjects.length > 0) {
     await deps.contextObjectRepo.bulkCreate(newContextObjects)
@@ -89,7 +93,6 @@ export async function GenerateQuizzesUseCase(
   const contextObjectsWithoutQuizzes = await deps.contextObjectRepo.findWithoutQuizzes(allNoteIds)
   const generatedQuizItems = await generateQuizzes(contextObjectsWithoutQuizzes, deps.aiRepo)
 
-  const now = new Date()
   const newQuizzes: Quiz[] = generatedQuizItems.map((generatedQuizItem) => {
     const contextObject = contextObjectsWithoutQuizzes[generatedQuizItem.contextObjectIndex]
     if (!contextObject) throw new Error(`Invalid context_object_index: ${generatedQuizItem.contextObjectIndex}`)

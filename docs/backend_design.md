@@ -206,9 +206,9 @@ Ask the AI a follow-up question about an expression. Transient — not persisted
 |--------|------|----------|------|
 | POST | `/auth/register` | `RegisterUseCase` | No |
 | POST | `/auth/login` | `LoginUseCase` | No |
-| POST | `/sync/notebooks` | `SyncUseCase` | JWT |
+| POST | `/sync/notebooks` | `SyncNotebooksUseCase` → `SyncNotesUseCase` | JWT |
 | POST | `/sync/quizzes` | `GenerateQuizzesUseCase` | JWT |
-| POST | `/sync/quiz-runs` | `SubmitQuizRunUseCase` | JWT |
+| POST | `/sync/quiz-runs` | `SyncQuizRunsUseCase` | JWT |
 | POST | `/learn` | `LearnUseCase` | JWT |
 
 Endpoints follow a **sync-first** design — see [ADR-016](../Notto-docs/docs/adr/016-sync-first-endpoints.md). There are no standalone GET endpoints for user data. Each sync endpoint receives what the client currently has and returns what the client is missing.

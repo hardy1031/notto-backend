@@ -3,8 +3,8 @@ import { cors } from "hono/cors"
 import { AIUnavailableError, ConflictError, ForbiddenError, NotFoundError } from "./errors/index.ts"
 import { authRouter } from "./routes/auth.ts"
 import { learnRouter } from "./routes/learn.ts"
-import { quizRunsRouter } from "./routes/quizRuns.ts"
-import { quizzesRouter } from "./routes/quizzes.ts"
+import { syncQuizRunsRouter } from "./routes/syncQuizRuns.ts"
+import { syncQuizzesRouter } from "./routes/syncQuizzes.ts"
 import { syncNotebooksRouter } from "./routes/syncNotebooks.ts"
 
 const app = new Hono()
@@ -13,8 +13,8 @@ app.use(cors({ origin: "http://localhost:5173" }))
 
 app.route("/auth", authRouter)
 app.route("/sync/notebooks", syncNotebooksRouter)
-app.route("/sync/quizzes", quizzesRouter)
-app.route("/sync/quiz-runs", quizRunsRouter)
+app.route("/sync/quizzes", syncQuizzesRouter)
+app.route("/sync/quiz-runs", syncQuizRunsRouter)
 app.route("/learn", learnRouter)
 
 app.onError((err, c) => {

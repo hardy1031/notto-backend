@@ -1,10 +1,9 @@
 import type { AIRepository } from "../../repositories/aiRepository.ts"
 import type { GeneratedContextObject } from "../../repositories/types.ts"
 
-export async function generateContextObject(
-  expression: string,
-  annotation: string,
+export async function generateContextObjects(
+  pieces: { expression: string; annotation: string }[],
   aiRepo: AIRepository
-): Promise<GeneratedContextObject> {
-  return aiRepo.generateContextObject(expression, annotation)
+): Promise<GeneratedContextObject[]> {
+  return aiRepo.generateContextObjects(pieces)
 }

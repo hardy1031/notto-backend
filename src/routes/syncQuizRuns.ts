@@ -7,11 +7,11 @@ import { authMiddleware } from "../middleware/auth.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { SyncQuizRunsUseCase } from "../usecases/SyncQuizRunsUseCase.ts"
 
-export const quizRunsRouter = new Hono<{ Variables: AppVariables }>()
+export const syncQuizRunsRouter = new Hono<{ Variables: AppVariables }>()
 
-quizRunsRouter.use("*", authMiddleware)
+syncQuizRunsRouter.use("*", authMiddleware)
 
-quizRunsRouter.post(
+syncQuizRunsRouter.post(
   "/",
   zValidator(
     "json",

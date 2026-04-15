@@ -8,8 +8,8 @@ import type {
 } from "../repositories/types.ts"
 
 export class MockAIRepository implements AIRepository {
-  async generateContextObject(expression: string, annotation: string): Promise<GeneratedContextObject> {
-    return {
+  async generateContextObjects(pieces: { expression: string; annotation: string }[]): Promise<GeneratedContextObject[]> {
+    return pieces.map(({ expression, annotation }) => ({
       expression,
       baseMeaning: annotation,
       actualNuance: `Mock nuance for: ${annotation}`,
@@ -20,7 +20,7 @@ export class MockAIRepository implements AIRepository {
         { speaker: "A", text: `${expression}を使う場面の例文A` },
         { speaker: "B", text: `${expression}を使う場面の例文B` },
       ],
-    }
+    }))
   }
 
   async generateQuizzes(contextObjects: ContextObject[]): Promise<GeneratedQuiz[]> {
@@ -111,21 +111,25 @@ export class RealAIRepository implements AIRepository {
     }
   }
 
-  async generateContextObject(expression: string, annotation: string): Promise<GeneratedContextObject> {
-    const promptText = await Bun.file("src/prompts/generateContextObject.txt").text()
+  async generateContextObjects(pieces: { expression: string; annotation: string }[]): Promise<GeneratedContextObject[]> {
+    const promptText = await Bun.file("src/prompts/generateContextObjects.txt").text()
 
     const result = await this.callWithRetry(async () => {
       const response = await this.client.messages.create({
         model: "claude-opus-4-6",
-        max_tokens: 1024,
+        max_tokens: 4096,
         system: [{ type: "text", text: promptText, cache_control: { type: "ephemeral" } }],
-        messages: [{ role: "user", content: JSON.stringify({ expression, annotation }) }],
+        messages: [{ role: "user", content: JSON.stringify(pieces) }],
       })
       const content = response.content[0]
       if (!content || content.type !== "text") {
         throw new AIUnavailableError("Unexpected AI response format")
       }
-      return this.parseJSON<GeneratedContextObject>(content.text)
+      const parsed = this.parseJSON<{ context_objects: unknown[] }>(content.text)
+      if (!parsed.context_objects || !Array.isArray(parsed.context_objects)) {
+        throw new AIUnavailableError("Missing context_objects in AI response")
+      }
+      return parsed.context_objects as GeneratedContextObject[]
     })
 
     return result

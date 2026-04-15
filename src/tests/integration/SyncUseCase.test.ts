@@ -1,15 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { supabase } from "../../infrastructure/supabaseClient.ts"
-import { SupabaseContextObjectRepository } from "../../infrastructure/repositories/supabaseContextObjectRepository.ts"
 import { SupabaseNotePieceRepository } from "../../infrastructure/repositories/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../../infrastructure/repositories/supabaseNoteRepository.ts"
 import { SupabaseNotebookRepository } from "../../infrastructure/repositories/supabaseNotebookRepository.ts"
-import { SupabaseQuizRepository } from "../../infrastructure/repositories/supabaseQuizRepository.ts"
-import { SupabaseQuizRunRepository } from "../../infrastructure/repositories/supabaseQuizRunRepository.ts"
 import { MockNoteStorageRepository } from "../../infrastructure/mockNoteStorageRepository.ts"
-import { SyncUseCase } from "../../usecases/SyncUseCase.ts"
+import { SyncNotebooksUseCase } from "../../usecases/SyncNotebooksUseCase.ts"
+import { SyncNotesUseCase } from "../../usecases/SyncNotesUseCase.ts"
 
-// Test user created via Supabase Admin API before tests run
 const TEST_USER_ID = "11111111-1111-1111-1111-111111111111"
 const TEST_EMAIL = "sync-test@example.com"
 const TEST_PASSWORD = "password123"
@@ -18,11 +15,9 @@ const notebookRepo = new SupabaseNotebookRepository()
 const noteRepo = new SupabaseNoteRepository()
 const notePieceRepo = new SupabaseNotePieceRepository()
 const noteStorage = new MockNoteStorageRepository()
-const contextObjectRepo = new SupabaseContextObjectRepository()
-const quizRepo = new SupabaseQuizRepository()
-const quizRunRepo = new SupabaseQuizRunRepository()
 
-const deps = { notebookRepo, noteRepo, notePieceRepo, noteStorage, contextObjectRepo, quizRepo, quizRunRepo }
+const notebookDeps = { notebookRepo }
+const noteDeps = { notebookRepo, noteRepo, notePieceRepo, noteStorage }
 
 async function cleanupUser() {
   await supabase.auth.admin.deleteUser(TEST_USER_ID)
@@ -51,17 +46,13 @@ afterEach(async () => {
   await cleanupUser()
 })
 
-describe("SyncUseCase — notebooks", () => {
+describe("SyncNotebooksUseCase", () => {
   it("creates notebook when it does not exist on server", async () => {
     const notebookId = "aaaaaaaa-0000-0000-0000-000000000001"
 
-    await SyncUseCase(
-      {
-        userId: TEST_USER_ID,
-        notebooks: [{ id: notebookId, userId: TEST_USER_ID, name: "スラング", createdAt: new Date(), updatedAt: new Date() }],
-        notes: [],
-      },
-      deps
+    await SyncNotebooksUseCase(
+      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "スラング", createdAt: new Date(), updatedAt: new Date() }] },
+      notebookDeps
     )
 
     const notebooks = await notebookRepo.findByUserId(TEST_USER_ID)
@@ -75,22 +66,13 @@ describe("SyncUseCase — notebooks", () => {
     const originalUpdatedAt = new Date("2026-01-01T00:00:00Z")
     const newerUpdatedAt = new Date("2026-01-02T00:00:00Z")
 
-    await SyncUseCase(
-      {
-        userId: TEST_USER_ID,
-        notebooks: [{ id: notebookId, userId: TEST_USER_ID, name: "original", createdAt, updatedAt: originalUpdatedAt }],
-        notes: [],
-      },
-      deps
+    await SyncNotebooksUseCase(
+      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "original", createdAt, updatedAt: originalUpdatedAt }] },
+      notebookDeps
     )
-
-    await SyncUseCase(
-      {
-        userId: TEST_USER_ID,
-        notebooks: [{ id: notebookId, userId: TEST_USER_ID, name: "updated", createdAt, updatedAt: newerUpdatedAt }],
-        notes: [],
-      },
-      deps
+    await SyncNotebooksUseCase(
+      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "updated", createdAt, updatedAt: newerUpdatedAt }] },
+      notebookDeps
     )
 
     const notebooks = await notebookRepo.findByUserId(TEST_USER_ID)
@@ -101,22 +83,13 @@ describe("SyncUseCase — notebooks", () => {
     const notebookId = "aaaaaaaa-0000-0000-0000-000000000003"
     const updatedAt = new Date("2026-01-01T00:00:00Z")
 
-    await SyncUseCase(
-      {
-        userId: TEST_USER_ID,
-        notebooks: [{ id: notebookId, userId: TEST_USER_ID, name: "original", createdAt: updatedAt, updatedAt }],
-        notes: [],
-      },
-      deps
+    await SyncNotebooksUseCase(
+      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "original", createdAt: updatedAt, updatedAt }] },
+      notebookDeps
     )
-
-    await SyncUseCase(
-      {
-        userId: TEST_USER_ID,
-        notebooks: [{ id: notebookId, userId: TEST_USER_ID, name: "should not update", createdAt: updatedAt, updatedAt }],
-        notes: [],
-      },
-      deps
+    await SyncNotebooksUseCase(
+      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "should not update", createdAt: updatedAt, updatedAt }] },
+      notebookDeps
     )
 
     const notebooks = await notebookRepo.findByUserId(TEST_USER_ID)
@@ -124,27 +97,22 @@ describe("SyncUseCase — notebooks", () => {
   })
 })
 
-describe("SyncUseCase — notes", () => {
+describe("SyncNotesUseCase", () => {
   const notebookId = "aaaaaaaa-0000-0000-0000-000000000010"
 
   beforeEach(async () => {
-    await SyncUseCase(
-      {
-        userId: TEST_USER_ID,
-        notebooks: [{ id: notebookId, userId: TEST_USER_ID, name: "test", createdAt: new Date(), updatedAt: new Date() }],
-        notes: [],
-      },
-      deps
+    await SyncNotebooksUseCase(
+      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "test", createdAt: new Date(), updatedAt: new Date() }] },
+      notebookDeps
     )
   })
 
   it("creates note and note_pieces when note does not exist on server", async () => {
     const noteId = "bbbbbbbb-0000-0000-0000-000000000001"
 
-    const result = await SyncUseCase(
+    const result = await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notebooks: [],
         notes: [{
           id: noteId,
           notebookId,
@@ -153,11 +121,10 @@ describe("SyncUseCase — notes", () => {
           updatedAt: new Date(),
         }],
       },
-      deps
+      noteDeps
     )
 
     expect(result.syncedNoteIds).toContain(noteId)
-
     const pieces = await notePieceRepo.findByNoteIds([noteId])
     expect(pieces).toHaveLength(2)
   })
@@ -167,10 +134,9 @@ describe("SyncUseCase — notes", () => {
     const originalUpdatedAt = new Date("2026-01-01T00:00:00Z")
     const newerUpdatedAt = new Date("2026-01-02T00:00:00Z")
 
-    await SyncUseCase(
+    await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notebooks: [],
         notes: [{
           id: noteId,
           notebookId,
@@ -179,16 +145,15 @@ describe("SyncUseCase — notes", () => {
           updatedAt: originalUpdatedAt,
         }],
       },
-      deps
+      noteDeps
     )
 
     const piecesBeforeUpdate = await notePieceRepo.findByNoteIds([noteId])
     const originalPieceId = piecesBeforeUpdate[0]!.id
 
-    await SyncUseCase(
+    await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notebooks: [],
         notes: [{
           id: noteId,
           notebookId,
@@ -197,7 +162,7 @@ describe("SyncUseCase — notes", () => {
           updatedAt: newerUpdatedAt,
         }],
       },
-      deps
+      noteDeps
     )
 
     const piecesAfterUpdate = await notePieceRepo.findByNoteIds([noteId])
@@ -209,10 +174,9 @@ describe("SyncUseCase — notes", () => {
     const noteId = "bbbbbbbb-0000-0000-0000-000000000003"
     const updatedAt = new Date("2026-01-01T00:00:00Z")
 
-    await SyncUseCase(
+    await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notebooks: [],
         notes: [{
           id: noteId,
           notebookId,
@@ -221,13 +185,12 @@ describe("SyncUseCase — notes", () => {
           updatedAt,
         }],
       },
-      deps
+      noteDeps
     )
 
-    const result = await SyncUseCase(
+    const result = await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notebooks: [],
         notes: [{
           id: noteId,
           notebookId,
@@ -236,9 +199,29 @@ describe("SyncUseCase — notes", () => {
           updatedAt,
         }],
       },
-      deps
+      noteDeps
     )
 
     expect(result.syncedNoteIds).not.toContain(noteId)
+  })
+
+  it("throws NotFoundError when notebook_id does not exist on server", async () => {
+    const unknownNotebookId = "ffffffff-0000-0000-0000-000000000000"
+
+    await expect(
+      SyncNotesUseCase(
+        {
+          userId: TEST_USER_ID,
+          notes: [{
+            id: "bbbbbbbb-0000-0000-0000-000000000099",
+            notebookId: unknownNotebookId,
+            content: "- test :: test",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }],
+        },
+        noteDeps
+      )
+    ).rejects.toThrow("Notebook not found")
   })
 })
