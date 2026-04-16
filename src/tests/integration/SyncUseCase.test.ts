@@ -116,6 +116,7 @@ describe("SyncNotesUseCase", () => {
         notes: [{
           id: noteId,
           notebookId,
+          name: "スラング",
           content: "- 겠냐? :: rough dismissive question\n- 나중에 :: see you later",
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -140,6 +141,7 @@ describe("SyncNotesUseCase", () => {
         notes: [{
           id: noteId,
           notebookId,
+          name: "スラング",
           content: "- 겠냐? :: rough dismissive question",
           createdAt: originalUpdatedAt,
           updatedAt: originalUpdatedAt,
@@ -157,6 +159,7 @@ describe("SyncNotesUseCase", () => {
         notes: [{
           id: noteId,
           notebookId,
+          name: "スラング updated",
           content: "- 나중에 :: see you later\n- 화이팅 :: do your best",
           createdAt: originalUpdatedAt,
           updatedAt: newerUpdatedAt,
@@ -180,6 +183,7 @@ describe("SyncNotesUseCase", () => {
         notes: [{
           id: noteId,
           notebookId,
+          name: "スラング",
           content: "- 겠냐? :: rough dismissive question",
           createdAt: updatedAt,
           updatedAt,
@@ -194,6 +198,7 @@ describe("SyncNotesUseCase", () => {
         notes: [{
           id: noteId,
           notebookId,
+          name: "スラング",
           content: "- should not update :: this content",
           createdAt: updatedAt,
           updatedAt,
@@ -215,6 +220,7 @@ describe("SyncNotesUseCase", () => {
           notes: [{
             id: "bbbbbbbb-0000-0000-0000-000000000099",
             notebookId: unknownNotebookId,
+            name: "test",
             content: "- test :: test",
             createdAt: new Date(),
             updatedAt: new Date(),

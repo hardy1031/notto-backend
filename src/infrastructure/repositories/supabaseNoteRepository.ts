@@ -7,6 +7,7 @@ function toNote(row: Record<string, unknown>): Note {
   return {
     id: row.id as string,
     notebookId: row.notebook_id as string,
+    name: row.name as string,
     s3Key: row.s3_key as string,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
@@ -37,6 +38,7 @@ export class SupabaseNoteRepository implements NoteRepository {
     const { error } = await supabase.from("notes").insert({
       id: note.id,
       notebook_id: note.notebookId,
+      name: note.name,
       s3_key: note.s3Key,
       created_at: note.createdAt.toISOString(),
       updated_at: note.updatedAt.toISOString(),
@@ -47,7 +49,7 @@ export class SupabaseNoteRepository implements NoteRepository {
   async update(note: Note): Promise<void> {
     const { error } = await supabase
       .from("notes")
-      .update({ updated_at: note.updatedAt.toISOString() })
+      .update({ name: note.name, updated_at: note.updatedAt.toISOString() })
       .eq("id", note.id)
     if (error) throw new DBError(error.message)
   }

@@ -12,6 +12,7 @@ import type { Note } from "../repositories/types.ts"
 export type SyncNoteInput = {
   id: string
   notebookId: string
+  name: string
   content: string
   createdAt: Date
   updatedAt: Date
@@ -64,7 +65,7 @@ export async function SyncNotesUseCase(
     if (!existing) {
       await uploadNoteContent(s3Key, JSON.stringify(parsed), deps.noteStorage)
       await createNote(
-        { id: note.id, notebookId: note.notebookId, s3Key, createdAt: note.createdAt, updatedAt: note.updatedAt },
+        { id: note.id, notebookId: note.notebookId, name: note.name, s3Key, createdAt: note.createdAt, updatedAt: note.updatedAt },
         deps.noteRepo
       )
       const now = new Date()
@@ -74,7 +75,7 @@ export async function SyncNotesUseCase(
       syncedNoteIds.push(note.id)
     } else if (note.updatedAt > existing.updatedAt) {
       await uploadNoteContent(s3Key, JSON.stringify(parsed), deps.noteStorage)
-      await updateNote({ ...existing, updatedAt: note.updatedAt }, deps.noteRepo)
+      await updateNote({ ...existing, name: note.name, updatedAt: note.updatedAt }, deps.noteRepo)
       await deps.notePieceRepo.deleteByNoteId(note.id)
       const now = new Date()
       await deps.notePieceRepo.upsert(

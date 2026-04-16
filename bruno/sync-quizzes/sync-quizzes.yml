@@ -1,0 +1,38 @@
+info:
+  name: sync quizzes
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:3000/sync/quizzes
+  auth:
+    type: bearer
+    token: "{{token}}"
+  body:
+    type: json
+    data: |-
+      {
+        "context_object_ids": [],
+        "quiz_ids": []
+      }
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        if (res.status === 201 && res.body.context_objects && res.body.context_objects.length > 0) {
+          bru.setEnvVar("context_object_id", res.body.context_objects[0].id);
+        }
+        if (res.status === 201 && res.body.quizzes && res.body.quizzes.length > 0) {
+          bru.setEnvVar("quiz_id_1", res.body.quizzes[0].id);
+        }
+        if (res.status === 201 && res.body.quizzes && res.body.quizzes.length > 1) {
+          bru.setEnvVar("quiz_id_2", res.body.quizzes[1].id);
+        }
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -34,6 +34,7 @@ syncNotebooksRouter.post(
           z.object({
             id: z.string().uuid(),
             notebook_id: z.string().uuid(),
+            name: z.string().min(1),
             content: z.string().min(1),
             created_at: z.string().datetime(),
             updated_at: z.string().datetime(),
@@ -71,6 +72,7 @@ syncNotebooksRouter.post(
         notes: body.notes.map((note) => ({
           id: note.id,
           notebookId: note.notebook_id,
+          name: note.name,
           content: note.content,
           createdAt: new Date(note.created_at),
           updatedAt: new Date(note.updated_at),
@@ -89,6 +91,7 @@ syncNotebooksRouter.post(
       notes: notesResult.notes.map((note) => ({
         id: note.id,
         notebook_id: note.notebookId,
+        name: note.name,
         created_at: note.createdAt.toISOString(),
         updated_at: note.updatedAt.toISOString(),
       })),

@@ -11,6 +11,7 @@ export type Notebook = {
 export type Note = {
   id: string
   notebookId: string
+  name: string
   s3Key: string
   createdAt: Date
   updatedAt: Date
