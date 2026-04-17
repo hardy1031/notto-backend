@@ -4,3 +4,9 @@ variables:
     value: Ayato Hardy
   - name: test_email
     value: ayatomac@icloud.com
+  - name: test_first_language
+    value: ja
+  - name: test_target_language
+    value: ko
+  - name: test_password
+    value: password123
