@@ -2,12 +2,15 @@ import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
 import { z } from "zod"
 import { SupabaseAuthRepository } from "../infrastructure/supabaseAuthRepository.ts"
+import { authMiddleware } from "../middleware/auth.ts"
+import type { AppVariables } from "../types/hono.ts"
 import { LoginUseCase } from "../usecases/LoginUseCase.ts"
+import { LogoutUseCase } from "../usecases/LogoutUseCase.ts"
 import { RegisterUseCase } from "../usecases/RegisterUseCase.ts"
 
 const authRepo = new SupabaseAuthRepository()
 
-export const authRouter = new Hono()
+export const authRouter = new Hono<{ Variables: AppVariables }>()
 
 authRouter.post(
   "/register",
@@ -75,3 +78,10 @@ authRouter.post(
     })
   }
 )
+
+authRouter.post("/logout", authMiddleware, async (c) => {
+  const authHeader = c.req.header("Authorization")!
+  const token = authHeader.slice(7)
+  await LogoutUseCase(token, authRepo)
+  return c.body(null, 204)
+})

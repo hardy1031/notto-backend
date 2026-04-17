@@ -6,12 +6,14 @@ import { learnRouter } from "./routes/learn.ts"
 import { syncQuizRunsRouter } from "./routes/syncQuizRuns.ts"
 import { syncQuizzesRouter } from "./routes/syncQuizzes.ts"
 import { syncNotebooksRouter } from "./routes/syncNotebooks.ts"
+import { usersRouter } from "./routes/users.ts"
 
 const app = new Hono()
 
 app.use(cors({ origin: "http://localhost:5173" }))
 
 app.route("/auth", authRouter)
+app.route("/users", usersRouter)
 app.route("/sync/notebooks", syncNotebooksRouter)
 app.route("/sync/quizzes", syncQuizzesRouter)
 app.route("/sync/quiz-runs", syncQuizRunsRouter)

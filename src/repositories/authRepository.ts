@@ -7,6 +7,9 @@ export type AuthUser = {
   createdAt: Date
 }
 
+// Domain alias — the authenticated user is a Learner
+export type Learner = AuthUser
+
 export interface AuthRepository {
   createUser(params: {
     userName: string
@@ -22,4 +25,15 @@ export interface AuthRepository {
   ): Promise<{ token: string; user: AuthUser }>
 
   verifyToken(token: string): Promise<string | null>
+
+  logout(token: string): Promise<void>
+
+  getLearner(userId: string): Promise<Learner>
+
+  updateLearner(
+    userId: string,
+    params: { userName?: string; firstLanguage?: string; targetLanguage?: string }
+  ): Promise<Learner>
+
+  deleteLearner(userId: string): Promise<void>
 }

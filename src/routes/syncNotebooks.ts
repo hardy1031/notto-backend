@@ -4,7 +4,7 @@ import { z } from "zod"
 import { SupabaseNotePieceRepository } from "../infrastructure/repositories/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../infrastructure/repositories/supabaseNoteRepository.ts"
 import { SupabaseNotebookRepository } from "../infrastructure/repositories/supabaseNotebookRepository.ts"
-import { MockNoteStorageRepository } from "../infrastructure/mockNoteStorageRepository.ts"
+import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { SyncNotebooksUseCase } from "../usecases/SyncNotebooksUseCase.ts"
@@ -50,7 +50,7 @@ syncNotebooksRouter.post(
     const notebookRepo = new SupabaseNotebookRepository()
     const noteRepo = new SupabaseNoteRepository()
     const notePieceRepo = new SupabaseNotePieceRepository()
-    const noteStorage = new MockNoteStorageRepository()
+    const noteStorage = createNoteStorageRepository()
 
     // sync notebooks first, then notes (notes depend on notebooks existing on server)
     const notebooksResult = await SyncNotebooksUseCase(

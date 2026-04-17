@@ -12,4 +12,12 @@ export class MockNoteStorageRepository implements NoteStorageRepository {
   async fetch(s3Key: string): Promise<string> {
     return sharedStore.get(s3Key) ?? ""
   }
+
+  async deleteAllForUser(userId: string): Promise<void> {
+    for (const key of sharedStore.keys()) {
+      if (key.startsWith(`${userId}/`)) {
+        sharedStore.delete(key)
+      }
+    }
+  }
 }

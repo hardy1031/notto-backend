@@ -109,4 +109,53 @@ export class SupabaseAuthRepository implements AuthRepository {
     if (error || !data.user) return null
     return data.user.id
   }
+
+  async logout(token: string): Promise<void> {
+    const { error } = await supabase.auth.admin.signOut(token)
+    if (error) throw new DBError(error.message)
+  }
+
+  async getLearner(userId: string): Promise<AuthUser> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single()
+
+    if (error) throw new DBError(error.message)
+
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId)
+    if (authError) throw new DBError(authError.message)
+
+    return {
+      id: userId,
+      userName: data.user_name as string,
+      email: authUser.user.email ?? "",
+      firstLanguage: data.first_language as string,
+      targetLanguage: data.target_language as string,
+      createdAt: new Date(authUser.user.created_at),
+    }
+  }
+
+  async updateLearner(
+    userId: string,
+    params: { userName?: string; firstLanguage?: string; targetLanguage?: string }
+  ): Promise<AuthUser> {
+    const updates: Record<string, string> = {}
+    if (params.userName !== undefined) updates.user_name = params.userName
+    if (params.firstLanguage !== undefined) updates.first_language = params.firstLanguage
+    if (params.targetLanguage !== undefined) updates.target_language = params.targetLanguage
+
+    const { error } = await supabase.from("users").update(updates).eq("id", userId)
+    if (error) throw new DBError(error.message)
+
+    return this.getLearner(userId)
+  }
+
+  async deleteLearner(userId: string): Promise<void> {
+    // Deleting from auth.users cascades to all user data in the DB.
+    // S3 objects under {userId}/ must be cleaned up separately (see production_todo §4.3).
+    const { error } = await supabase.auth.admin.deleteUser(userId)
+    if (error) throw new DBError(error.message)
+  }
 }

@@ -6,7 +6,7 @@ import { SupabaseContextObjectRepository } from "../infrastructure/repositories/
 import { SupabaseNotePieceRepository } from "../infrastructure/repositories/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../infrastructure/repositories/supabaseNoteRepository.ts"
 import { SupabaseQuizRepository } from "../infrastructure/repositories/supabaseQuizRepository.ts"
-import { MockNoteStorageRepository } from "../infrastructure/mockNoteStorageRepository.ts"
+import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { GenerateQuizzesUseCase } from "../usecases/GenerateQuizzesUseCase.ts"
@@ -36,7 +36,7 @@ syncQuizzesRouter.post(
       },
       {
         noteRepo: new SupabaseNoteRepository(),
-        noteStorage: new MockNoteStorageRepository(),
+        noteStorage: createNoteStorageRepository(),
         notePieceRepo: new SupabaseNotePieceRepository(),
         contextObjectRepo: new SupabaseContextObjectRepository(),
         quizRepo: new SupabaseQuizRepository(),
