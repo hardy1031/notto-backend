@@ -3,6 +3,7 @@ import { Hono } from "hono"
 import { z } from "zod"
 import { SupabaseAuthRepository } from "../infrastructure/supabaseAuthRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
+import { ipRateLimit } from "../middleware/rateLimit.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { LoginUseCase } from "../usecases/LoginUseCase.ts"
 import { LogoutUseCase } from "../usecases/LogoutUseCase.ts"
@@ -14,6 +15,7 @@ export const authRouter = new Hono<{ Variables: AppVariables }>()
 
 authRouter.post(
   "/register",
+  ipRateLimit(5, 60 * 60 * 1000), // 5 requests per hour
   zValidator(
     "json",
     z.object({
@@ -55,6 +57,7 @@ authRouter.post(
 
 authRouter.post(
   "/login",
+  ipRateLimit(10, 15 * 60 * 1000), // 10 requests per 15 minutes
   zValidator(
     "json",
     z.object({

@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
-import { AIUnavailableError, ConflictError, ForbiddenError, NotFoundError } from "./errors/index.ts"
+import { AIUnavailableError, ConflictError, DBError, ForbiddenError, NotFoundError, S3Error } from "./errors/index.ts"
 import { authRouter } from "./routes/auth.ts"
 import { learnRouter } from "./routes/learn.ts"
 import { syncQuizRunsRouter } from "./routes/syncQuizRuns.ts"
@@ -31,6 +31,14 @@ app.onError((err, c) => {
   }
   if (err instanceof AIUnavailableError) {
     return c.json({ error: { code: "AI_UNAVAILABLE", message: err.message } }, 503)
+  }
+  if (err instanceof S3Error) {
+    console.error(`[S3Error]`, err.message)
+    return c.json({ error: { code: "STORAGE_ERROR", message: "Storage operation failed" } }, 503)
+  }
+  if (err instanceof DBError) {
+    console.error(`[DBError]`, err.message)
+    return c.json({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } }, 500)
   }
   console.error(`[${err.constructor.name}]`, err.message, err.stack)
   return c.json({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } }, 500)

@@ -4,12 +4,14 @@ import { z } from "zod"
 import { MockAIRepository } from "../infrastructure/aiClient.ts"
 import { SupabaseContextObjectRepository } from "../infrastructure/repositories/supabaseContextObjectRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
+import { userRateLimit } from "../middleware/rateLimit.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { LearnUseCase } from "../usecases/LearnUseCase.ts"
 
 export const learnRouter = new Hono<{ Variables: AppVariables }>()
 
 learnRouter.use("*", authMiddleware)
+learnRouter.use("*", userRateLimit(20, 60 * 1000)) // 20 requests per minute
 
 learnRouter.post(
   "/",

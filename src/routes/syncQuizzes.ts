@@ -8,12 +8,14 @@ import { SupabaseNoteRepository } from "../infrastructure/repositories/supabaseN
 import { SupabaseQuizRepository } from "../infrastructure/repositories/supabaseQuizRepository.ts"
 import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
 import { authMiddleware } from "../middleware/auth.ts"
+import { userRateLimit } from "../middleware/rateLimit.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { GenerateQuizzesUseCase } from "../usecases/GenerateQuizzesUseCase.ts"
 
 export const syncQuizzesRouter = new Hono<{ Variables: AppVariables }>()
 
 syncQuizzesRouter.use("*", authMiddleware)
+syncQuizzesRouter.use("*", userRateLimit(20, 60 * 1000)) // 20 requests per minute
 
 syncQuizzesRouter.post(
   "/",
