@@ -1,9 +1,9 @@
-import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
-import { z } from "zod"
 import { SupabaseAuthRepository } from "../infrastructure/supabaseAuthRepository.ts"
 import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
 import { authMiddleware } from "../middleware/auth.ts"
+import { validate } from "../middleware/validate.ts"
+import { updateLearnerSchema } from "../schemas/users.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { DeleteLearnerUseCase } from "../usecases/DeleteLearnerUseCase.ts"
 import { GetLearnerUseCase } from "../usecases/GetLearnerUseCase.ts"
@@ -42,18 +42,7 @@ usersRouter.get("/me", async (c) => {
 
 usersRouter.patch(
   "/me",
-  zValidator(
-    "json",
-    z
-      .object({
-        user_name: z.string().min(1).optional(),
-        first_language: z.string().min(1).optional(),
-        target_language: z.string().min(1).optional(),
-      })
-      .refine((data) => Object.keys(data).length > 0, {
-        message: "At least one field must be provided",
-      })
-  ),
+  validate("json", updateLearnerSchema),
   async (c) => {
     const userId = c.get("userId")
     const body = c.req.valid("json")

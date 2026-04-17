@@ -1,4 +1,5 @@
 import { Hono } from "hono"
+import { bodyLimit } from "hono/body-limit"
 import { cors } from "hono/cors"
 import { AIUnavailableError, ConflictError, DBError, ForbiddenError, NotFoundError, S3Error } from "./errors/index.ts"
 import { authRouter } from "./routes/auth.ts"
@@ -10,7 +11,16 @@ import { usersRouter } from "./routes/users.ts"
 
 const app = new Hono()
 
-app.use(cors({ origin: "http://localhost:5173" }))
+// CORS is only needed for browser-based clients (dev tools, web client).
+// Native app clients do not use browsers so CORS headers are irrelevant for them.
+// Set ALLOWED_ORIGINS (comma-separated) to enable CORS for specific origins.
+// Leave unset in production (native-only) to skip CORS entirely.
+app.use(bodyLimit({ maxSize: 1 * 1024 * 1024 })) // 1MB
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim())
+if (allowedOrigins && allowedOrigins.length > 0) {
+  app.use(cors({ origin: allowedOrigins }))
+}
 
 app.route("/auth", authRouter)
 app.route("/users", usersRouter)

@@ -1,10 +1,10 @@
-import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
-import { z } from "zod"
 import { MockAIRepository } from "../infrastructure/aiClient.ts"
 import { SupabaseContextObjectRepository } from "../infrastructure/repositories/supabaseContextObjectRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { userRateLimit } from "../middleware/rateLimit.ts"
+import { validate } from "../middleware/validate.ts"
+import { learnSchema } from "../schemas/learn.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { LearnUseCase } from "../usecases/LearnUseCase.ts"
 
@@ -15,13 +15,7 @@ learnRouter.use("*", userRateLimit(20, 60 * 1000)) // 20 requests per minute
 
 learnRouter.post(
   "/",
-  zValidator(
-    "json",
-    z.object({
-      context_object_id: z.string().uuid(),
-      question: z.string().min(1),
-    })
-  ),
+  validate("json", learnSchema),
   async (c) => {
     const userId = c.get("userId")
     const body = c.req.valid("json")

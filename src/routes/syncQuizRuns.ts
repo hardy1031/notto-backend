@@ -1,9 +1,9 @@
-import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
-import { z } from "zod"
 import { SupabaseQuizRepository } from "../infrastructure/repositories/supabaseQuizRepository.ts"
 import { SupabaseQuizRunRepository } from "../infrastructure/repositories/supabaseQuizRunRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
+import { validate } from "../middleware/validate.ts"
+import { syncQuizRunsSchema } from "../schemas/sync.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { SyncQuizRunsUseCase } from "../usecases/SyncQuizRunsUseCase.ts"
 
@@ -13,32 +13,7 @@ syncQuizRunsRouter.use("*", authMiddleware)
 
 syncQuizRunsRouter.post(
   "/",
-  zValidator(
-    "json",
-    z.object({
-      quiz_runs: z
-        .array(
-          z.object({
-            id: z.string().uuid(),
-            started_at: z.string().datetime(),
-            completed_at: z.string().datetime().nullable(),
-            records: z
-              .array(
-                z.object({
-                  id: z.string().uuid(),
-                  quiz_id: z.string().uuid(),
-                  choices: z.array(z.string()),
-                  user_answer: z.string().min(1),
-                  is_correct: z.boolean(),
-                  created_at: z.string().datetime(),
-                })
-              )
-              .min(1),
-          })
-        )
-        .default([]),
-    })
-  ),
+  validate("json", syncQuizRunsSchema),
   async (c) => {
     const userId = c.get("userId")
     const body = c.req.valid("json")

@@ -70,7 +70,7 @@ export function rateLimit(options: RateLimitOptions): MiddlewareHandler {
 /** Extracts client IP from standard proxy headers, falls back to a constant. */
 function getClientIp(c: Parameters<MiddlewareHandler>[0]): string {
   return (
-    c.req.header("x-forwarded-for")?.split(",")[0].trim() ??
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
     c.req.header("x-real-ip") ??
     "unknown"
   )

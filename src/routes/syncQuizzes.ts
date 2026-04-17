@@ -1,6 +1,4 @@
-import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
-import { z } from "zod"
 import { MockAIRepository } from "../infrastructure/aiClient.ts"
 import { SupabaseContextObjectRepository } from "../infrastructure/repositories/supabaseContextObjectRepository.ts"
 import { SupabaseNotePieceRepository } from "../infrastructure/repositories/supabaseNotePieceRepository.ts"
@@ -9,6 +7,8 @@ import { SupabaseQuizRepository } from "../infrastructure/repositories/supabaseQ
 import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { userRateLimit } from "../middleware/rateLimit.ts"
+import { validate } from "../middleware/validate.ts"
+import { syncQuizzesSchema } from "../schemas/sync.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { GenerateQuizzesUseCase } from "../usecases/GenerateQuizzesUseCase.ts"
 
@@ -19,13 +19,7 @@ syncQuizzesRouter.use("*", userRateLimit(20, 60 * 1000)) // 20 requests per minu
 
 syncQuizzesRouter.post(
   "/",
-  zValidator(
-    "json",
-    z.object({
-      context_object_ids: z.array(z.string().uuid()).default([]),
-      quiz_ids: z.array(z.string().uuid()).default([]),
-    })
-  ),
+  validate("json", syncQuizzesSchema),
   async (c) => {
     const userId = c.get("userId")
     const body = c.req.valid("json")

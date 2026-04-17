@@ -1,11 +1,11 @@
-import { zValidator } from "@hono/zod-validator"
 import { Hono } from "hono"
-import { z } from "zod"
 import { SupabaseNotePieceRepository } from "../infrastructure/repositories/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../infrastructure/repositories/supabaseNoteRepository.ts"
 import { SupabaseNotebookRepository } from "../infrastructure/repositories/supabaseNotebookRepository.ts"
 import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
 import { authMiddleware } from "../middleware/auth.ts"
+import { validate } from "../middleware/validate.ts"
+import { syncNotebooksSchema } from "../schemas/sync.ts"
 import type { AppVariables } from "../types/hono.ts"
 import { SyncNotebooksUseCase } from "../usecases/SyncNotebooksUseCase.ts"
 import { SyncNotesUseCase } from "../usecases/SyncNotesUseCase.ts"
@@ -16,33 +16,7 @@ syncNotebooksRouter.use("*", authMiddleware)
 
 syncNotebooksRouter.post(
   "/",
-  zValidator(
-    "json",
-    z.object({
-      notebooks: z
-        .array(
-          z.object({
-            id: z.string().uuid(),
-            name: z.string().min(1),
-            created_at: z.string().datetime(),
-            updated_at: z.string().datetime(),
-          })
-        )
-        .default([]),
-      notes: z
-        .array(
-          z.object({
-            id: z.string().uuid(),
-            notebook_id: z.string().uuid(),
-            name: z.string().min(1),
-            content: z.string().min(1),
-            created_at: z.string().datetime(),
-            updated_at: z.string().datetime(),
-          })
-        )
-        .default([]),
-    })
-  ),
+  validate("json", syncNotebooksSchema),
   async (c) => {
     const userId = c.get("userId")
     const body = c.req.valid("json")
