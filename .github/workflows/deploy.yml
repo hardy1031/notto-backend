@@ -1,0 +1,52 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy to Lambda
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for OIDC
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build (esbuild — TS → JS bundle)
+        run: |
+          bunx esbuild src/index.ts \
+            --bundle \
+            --platform=node \
+            --target=node22 \
+            --outfile=dist/index.js \
+            --format=cjs \
+            --minify \
+            --external:@aws-sdk/client-s3
+
+      - name: Package zip
+        run: zip -j dist/function.zip dist/index.js
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Deploy to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name notto-backend-prod \
+            --zip-file fileb://dist/function.zip \
+            --no-cli-pager
+
+          aws lambda wait function-updated \
+            --function-name notto-backend-prod
