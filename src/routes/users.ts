@@ -1,6 +1,6 @@
 import { Hono } from "hono"
 import { SupabaseAuthRepository } from "../infrastructure/supabaseAuthRepository.ts"
-import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
+import { S3NoteStorageRepository } from "../infrastructure/s3NoteStorageRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { validate } from "../middleware/validate.ts"
 import { updateLearnerSchema } from "../schemas/users.ts"
@@ -61,6 +61,6 @@ usersRouter.patch(
 
 usersRouter.delete("/me", async (c) => {
   const userId = c.get("userId")
-  await DeleteLearnerUseCase(userId, authRepo, createNoteStorageRepository())
+  await DeleteLearnerUseCase(userId, authRepo, new S3NoteStorageRepository())
   return c.body(null, 204)
 })

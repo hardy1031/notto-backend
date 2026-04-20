@@ -1,11 +1,11 @@
-import { AIUnavailableError } from "../errors/index.ts"
-import type { AIRepository } from "../repositories/aiRepository.ts"
+import { AIUnavailableError } from "../../errors/index.ts"
+import type { AIRepository } from "../../repositories/aiRepository.ts"
 import type {
   AILearnResponse,
   ContextObject,
   GeneratedContextObject,
   GeneratedQuiz,
-} from "../repositories/types.ts"
+} from "../../repositories/types.ts"
 
 export class MockAIRepository implements AIRepository {
   async generateContextObjects(pieces: { expression: string; annotation: string }[]): Promise<GeneratedContextObject[]> {
@@ -80,7 +80,7 @@ export class MockAIRepository implements AIRepository {
   }
 }
 
-export class RealAIRepository implements AIRepository {
+export class GeminiAIRepository implements AIRepository {
   private client: import("@anthropic-ai/sdk").Anthropic
 
   constructor() {

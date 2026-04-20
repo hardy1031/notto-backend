@@ -1,6 +1,6 @@
 import { Hono } from "hono"
-import { MockAIRepository } from "../infrastructure/aiClient.ts"
-import { SupabaseContextObjectRepository } from "../infrastructure/repositories/supabaseContextObjectRepository.ts"
+import { MockAIRepository } from "../infrastructure/ai/geminiAIRepository.ts"
+import { SupabaseContextObjectRepository } from "../infrastructure/db/supabaseContextObjectRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { userRateLimit } from "../middleware/rateLimit.ts"
 import { validate } from "../middleware/validate.ts"

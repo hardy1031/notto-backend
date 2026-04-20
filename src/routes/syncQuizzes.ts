@@ -1,10 +1,10 @@
 import { Hono } from "hono"
-import { MockAIRepository } from "../infrastructure/aiClient.ts"
-import { SupabaseContextObjectRepository } from "../infrastructure/repositories/supabaseContextObjectRepository.ts"
-import { SupabaseNotePieceRepository } from "../infrastructure/repositories/supabaseNotePieceRepository.ts"
-import { SupabaseNoteRepository } from "../infrastructure/repositories/supabaseNoteRepository.ts"
-import { SupabaseQuizRepository } from "../infrastructure/repositories/supabaseQuizRepository.ts"
-import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
+import { MockAIRepository } from "../infrastructure/ai/geminiAIRepository.ts"
+import { SupabaseContextObjectRepository } from "../infrastructure/db/supabaseContextObjectRepository.ts"
+import { SupabaseNotePieceRepository } from "../infrastructure/db/supabaseNotePieceRepository.ts"
+import { SupabaseNoteRepository } from "../infrastructure/db/supabaseNoteRepository.ts"
+import { SupabaseQuizRepository } from "../infrastructure/db/supabaseQuizRepository.ts"
+import { S3NoteStorageRepository } from "../infrastructure/s3NoteStorageRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { userRateLimit } from "../middleware/rateLimit.ts"
 import { validate } from "../middleware/validate.ts"
@@ -32,7 +32,7 @@ syncQuizzesRouter.post(
       },
       {
         noteRepo: new SupabaseNoteRepository(),
-        noteStorage: createNoteStorageRepository(),
+        noteStorage: new S3NoteStorageRepository(),
         notePieceRepo: new SupabaseNotePieceRepository(),
         contextObjectRepo: new SupabaseContextObjectRepository(),
         quizRepo: new SupabaseQuizRepository(),

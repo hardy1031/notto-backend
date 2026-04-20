@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
 import { supabase } from "../../infrastructure/supabaseClient.ts"
-import { SupabaseNotePieceRepository } from "../../infrastructure/repositories/supabaseNotePieceRepository.ts"
-import { SupabaseNoteRepository } from "../../infrastructure/repositories/supabaseNoteRepository.ts"
-import { SupabaseNotebookRepository } from "../../infrastructure/repositories/supabaseNotebookRepository.ts"
-import { MockNoteStorageRepository } from "../../infrastructure/mockNoteStorageRepository.ts"
+import { SupabaseNotePieceRepository } from "../../infrastructure/db/supabaseNotePieceRepository.ts"
+import { SupabaseNoteRepository } from "../../infrastructure/db/supabaseNoteRepository.ts"
+import { SupabaseNotebookRepository } from "../../infrastructure/db/supabaseNotebookRepository.ts"
+import { MockNoteStorageRepository } from "../mocks/mockNoteStorageRepository.ts"
 import { SyncNotebooksUseCase } from "../../usecases/SyncNotebooksUseCase.ts"
 import { SyncNotesUseCase } from "../../usecases/SyncNotesUseCase.ts"
 

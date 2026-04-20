@@ -1,4 +1,4 @@
-import type { NoteStorageRepository } from "../repositories/noteStorageRepository.ts"
+import type { NoteStorageRepository } from "../../repositories/noteStorageRepository.ts"
 
 // Singleton store shared across all instances — allows separate request handlers
 // (e.g. POST /sync/notebooks and POST /sync/quizzes) to access the same in-memory data.

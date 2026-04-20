@@ -1,8 +1,8 @@
 import { Hono } from "hono"
-import { SupabaseNotePieceRepository } from "../infrastructure/repositories/supabaseNotePieceRepository.ts"
-import { SupabaseNoteRepository } from "../infrastructure/repositories/supabaseNoteRepository.ts"
-import { SupabaseNotebookRepository } from "../infrastructure/repositories/supabaseNotebookRepository.ts"
-import { createNoteStorageRepository } from "../infrastructure/noteStorageFactory.ts"
+import { SupabaseNotePieceRepository } from "../infrastructure/db/supabaseNotePieceRepository.ts"
+import { SupabaseNoteRepository } from "../infrastructure/db/supabaseNoteRepository.ts"
+import { SupabaseNotebookRepository } from "../infrastructure/db/supabaseNotebookRepository.ts"
+import { S3NoteStorageRepository } from "../infrastructure/s3NoteStorageRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { validate } from "../middleware/validate.ts"
 import { syncNotebooksSchema } from "../schemas/sync.ts"
@@ -24,7 +24,7 @@ syncNotebooksRouter.post(
     const notebookRepo = new SupabaseNotebookRepository()
     const noteRepo = new SupabaseNoteRepository()
     const notePieceRepo = new SupabaseNotePieceRepository()
-    const noteStorage = createNoteStorageRepository()
+    const noteStorage = new S3NoteStorageRepository()
 
     // sync notebooks first, then notes (notes depend on notebooks existing on server)
     const notebooksResult = await SyncNotebooksUseCase(

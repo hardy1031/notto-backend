@@ -1,6 +1,6 @@
 import { Hono } from "hono"
-import { SupabaseQuizRepository } from "../infrastructure/repositories/supabaseQuizRepository.ts"
-import { SupabaseQuizRunRepository } from "../infrastructure/repositories/supabaseQuizRunRepository.ts"
+import { SupabaseQuizRepository } from "../infrastructure/db/supabaseQuizRepository.ts"
+import { SupabaseQuizRunRepository } from "../infrastructure/db/supabaseQuizRunRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { validate } from "../middleware/validate.ts"
 import { syncQuizRunsSchema } from "../schemas/sync.ts"
