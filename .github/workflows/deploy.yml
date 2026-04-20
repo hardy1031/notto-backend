@@ -38,8 +38,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ap-northeast-1
+          role-to-assume: arn:aws:iam::836651842524:role/GithubOIDC
+          aws-region: us-west-2
 
       - name: Deploy to Lambda
         run: |
