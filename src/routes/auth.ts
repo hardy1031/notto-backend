@@ -1,5 +1,6 @@
 import { Hono } from "hono"
-import { SupabaseAuthRepository } from "../infrastructure/supabaseAuthRepository.ts"
+import { SupabaseAuthService } from "../infrastructure/supabaseAuthService.ts"
+import { SupabaseUserRepository } from "../infrastructure/db/supabaseUserRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { ipRateLimit } from "../middleware/rateLimit.ts"
 import { validate } from "../middleware/validate.ts"
@@ -9,7 +10,8 @@ import { LoginUseCase } from "../usecases/LoginUseCase.ts"
 import { LogoutUseCase } from "../usecases/LogoutUseCase.ts"
 import { RegisterUseCase } from "../usecases/RegisterUseCase.ts"
 
-const authRepo = new SupabaseAuthRepository()
+const authService = new SupabaseAuthService()
+const userRepo = new SupabaseUserRepository()
 
 export const authRouter = new Hono<{ Variables: AppVariables }>()
 
@@ -27,7 +29,8 @@ authRouter.post(
         firstLanguage: body.first_language,
         targetLanguage: body.target_language,
       },
-      authRepo
+      authService,
+      userRepo
     )
     return c.json(
       {
@@ -52,7 +55,7 @@ authRouter.post(
   validate("json", loginSchema),
   async (c) => {
     const body = c.req.valid("json")
-    const result = await LoginUseCase({ email: body.email, password: body.password }, authRepo)
+    const result = await LoginUseCase({ email: body.email, password: body.password }, authService, userRepo)
     return c.json({
       token: result.token,
       user: {
@@ -70,6 +73,6 @@ authRouter.post(
 authRouter.post("/logout", authMiddleware, async (c) => {
   const authHeader = c.req.header("Authorization")!
   const token = authHeader.slice(7)
-  await LogoutUseCase(token, authRepo)
+  await LogoutUseCase(token, authService)
   return c.body(null, 204)
 })

@@ -1,7 +1,8 @@
 import { NotFoundError } from "../errors/index.ts"
-import type { QuizRepository } from "../repositories/quizRepository.ts"
-import type { QuizRunRepository } from "../repositories/quizRunRepository.ts"
-import type { QuizRecord, QuizRun } from "../repositories/types.ts"
+import type { QuizQueryService } from "./queries/QuizQueryService.ts"
+import type { QuizRunRepository } from "../domain/quizRun/QuizRunRepository.ts"
+import type { QuizRunQueryService } from "./queries/QuizRunQueryService.ts"
+import type { QuizRecord, QuizRun } from "../domain/types.ts"
 
 export type SyncQuizRunRecordInput = {
   id: string
@@ -32,8 +33,8 @@ export async function SyncQuizRunsUseCase(
     quizRuns: SyncQuizRunInput[]
   },
   deps: {
-    quizRepo: QuizRepository
-    quizRunRepo: QuizRunRepository
+    quizRepo: QuizQueryService
+    quizRunRepo: QuizRunRepository & QuizRunQueryService
   }
 ): Promise<SyncQuizRunsOutput> {
   const { userId, quizRuns } = input

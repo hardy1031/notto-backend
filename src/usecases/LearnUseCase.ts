@@ -1,8 +1,8 @@
 import { askAI } from "../domain/learn/askAI.ts"
 import { ForbiddenError, NotFoundError } from "../errors/index.ts"
-import type { AIRepository } from "../repositories/aiRepository.ts"
-import type { ContextObjectRepository } from "../repositories/contextObjectRepository.ts"
-import type { AILearnResponse } from "../repositories/types.ts"
+import type { AIService } from "./AIService.ts"
+import type { ContextObjectQueryService } from "./queries/ContextObjectQueryService.ts"
+import type { AILearnResponse } from "../domain/types.ts"
 
 export type LearnInput = {
   userId: string
@@ -13,8 +13,8 @@ export type LearnInput = {
 export async function LearnUseCase(
   input: LearnInput,
   deps: {
-    contextObjectRepo: ContextObjectRepository
-    aiRepo: AIRepository
+    contextObjectRepo: ContextObjectQueryService
+    aiRepo: AIService
   }
 ): Promise<AILearnResponse> {
   const contextObject = await deps.contextObjectRepo.findByUserAndId(

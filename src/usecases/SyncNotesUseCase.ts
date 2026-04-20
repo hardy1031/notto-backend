@@ -1,13 +1,11 @@
 import { NotFoundError } from "../errors/index.ts"
-import { createNote } from "../domain/note/createNote.ts"
 import { parseNote } from "../domain/note/parseNote.ts"
-import { updateNote } from "../domain/note/updateNote.ts"
-import { uploadNoteContent } from "../domain/note/uploadNoteContent.ts"
-import type { NotePieceRepository } from "../repositories/notePieceRepository.ts"
-import type { NoteRepository } from "../repositories/noteRepository.ts"
-import type { NoteStorageRepository } from "../repositories/noteStorageRepository.ts"
-import type { NotebookRepository } from "../repositories/notebookRepository.ts"
-import type { Note } from "../repositories/types.ts"
+import type { NoteRepository } from "../domain/note/NoteRepository.ts"
+import type { NoteQueryService } from "./queries/NoteQueryService.ts"
+import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
+import type { NoteStorageService } from "./NoteStorageService.ts"
+import type { NotebookQueryService } from "./queries/NotebookQueryService.ts"
+import type { Note, ParsedNote } from "../domain/types.ts"
 
 export type SyncNoteInput = {
   id: string
@@ -19,77 +17,81 @@ export type SyncNoteInput = {
 }
 
 export type SyncNotesOutput = {
-  notes: Note[]
+  clientNotes: { note: Note; content: ParsedNote }[]
   syncedNoteIds: string[]
 }
 
 export async function SyncNotesUseCase(
   input: {
     userId: string
-    notes: SyncNoteInput[]
+    clientNotes: SyncNoteInput[]
   },
   deps: {
-    notebookRepo: NotebookRepository
-    noteRepo: NoteRepository
-    notePieceRepo: NotePieceRepository
-    noteStorage: NoteStorageRepository
+    notebookRepo: NotebookQueryService
+    noteRepo: NoteRepository & NoteQueryService
+    notePieceRepo: NotePieceQueryService
+    noteStorage: NoteStorageService
   }
 ): Promise<SyncNotesOutput> {
-  const { userId, notes } = input
+  const { userId, clientNotes: inputNotes } = input
 
-  // validate that all notebook_ids exist on the server
-  const notebookIds = [...new Set(notes.map((note) => note.notebookId))]
+  // validate that all notebookIds exist on the server
+  const notebookIds = [...new Set(inputNotes.map((note) => note.notebookId))]
   if (notebookIds.length > 0) {
-    const existingNotebooks = await deps.notebookRepo.findByUserIdAndIds(userId, notebookIds)
-    const existingNotebookIds = new Set(existingNotebooks.map((nb) => nb.id))
+    const serverNotebooks = await deps.notebookRepo.findByUserIdAndIds(userId, notebookIds)
+    const serverNotebookIds = new Set(serverNotebooks.map((notebook) => notebook.id))
     for (const notebookId of notebookIds) {
-      if (!existingNotebookIds.has(notebookId)) {
+      if (!serverNotebookIds.has(notebookId)) {
         throw new NotFoundError(`Notebook not found: ${notebookId}`)
       }
     }
   }
 
   // sync notes from client to server (LWW by updatedAt)
-  const clientIds = notes.map((note) => note.id)
-  const existingNotes =
-    clientIds.length > 0 ? await deps.noteRepo.findByUserIdAndIds(userId, clientIds) : []
-  const existingMap = new Map(existingNotes.map((note) => [note.id, note]))
+  const inputNoteIds = inputNotes.map((note) => note.id)
+  const serverNotesById = new Map<string, Note>()
+  if (inputNoteIds.length > 0) {
+    const serverNotes = await deps.noteRepo.findByUserIdAndIds(userId, inputNoteIds)
+    for (const note of serverNotes) {
+      serverNotesById.set(note.id, note)
+    }
+  }
 
   const syncedNoteIds: string[] = []
 
-  for (const note of notes) {
-    const existing = existingMap.get(note.id)
+  for (const note of inputNotes) {
+    const serverNote = serverNotesById.get(note.id)
     const s3Key = `${userId}/${note.notebookId}/${note.id}.json`
     const parsed = parseNote(note.id, note.content)
+    const now = new Date()
+    const pieces = parsed.pieces.map((p) => ({ id: p.notePieceId, noteId: note.id, createdAt: now }))
 
-    if (!existing) {
-      await uploadNoteContent(s3Key, JSON.stringify(parsed), deps.noteStorage)
-      await createNote(
+    if (!serverNote) {
+      await deps.noteStorage.upload(s3Key, JSON.stringify(parsed))
+      await deps.noteRepo.createWithNotePieces(
         { id: note.id, notebookId: note.notebookId, name: note.name, s3Key, createdAt: note.createdAt, updatedAt: note.updatedAt },
-        deps.noteRepo
-      )
-      const now = new Date()
-      await deps.notePieceRepo.upsert(
-        parsed.pieces.map((p) => ({ id: p.notePieceId, noteId: note.id, createdAt: now }))
+        pieces
       )
       syncedNoteIds.push(note.id)
-    } else if (note.updatedAt > existing.updatedAt) {
-      await uploadNoteContent(s3Key, JSON.stringify(parsed), deps.noteStorage)
-      await updateNote({ ...existing, name: note.name, updatedAt: note.updatedAt }, deps.noteRepo)
-      await deps.notePieceRepo.deleteByNoteId(note.id)
-      const now = new Date()
-      await deps.notePieceRepo.upsert(
-        parsed.pieces.map((p) => ({ id: p.notePieceId, noteId: note.id, createdAt: now }))
+    } else if (note.updatedAt > serverNote.updatedAt) {
+      await deps.noteStorage.upload(s3Key, JSON.stringify(parsed))
+      await deps.noteRepo.updateWithNotePieces(
+        { ...serverNote, name: note.name, updatedAt: note.updatedAt },
+        pieces
       )
       syncedNoteIds.push(note.id)
     }
   }
 
-  // return notes the server has that the client does not
+  // return notes the server has that the client does not (including content from storage)
   const serverNotes = await deps.noteRepo.findByUserId(userId)
-  const clientIdSet = new Set(clientIds)
-  return {
-    notes: serverNotes.filter((note) => !clientIdSet.has(note.id)),
-    syncedNoteIds,
-  }
+  const clientNoteIdSet = new Set(inputNoteIds)
+  const notesToSend = serverNotes.filter((note) => !clientNoteIdSet.has(note.id))
+  const clientNotes = await Promise.all(
+    notesToSend.map(async (note) => {
+      const json = await deps.noteStorage.fetch(note.s3Key)
+      return { note, content: JSON.parse(json) as ParsedNote }
+    })
+  )
+  return { clientNotes, syncedNoteIds }
 }

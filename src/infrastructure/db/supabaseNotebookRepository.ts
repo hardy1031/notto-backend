@@ -1,7 +1,8 @@
 import { DBError } from "../../errors/index.ts"
-import type { NotebookRepository } from "../../repositories/notebookRepository.ts"
-import type { Notebook } from "../../repositories/types.ts"
-import { supabase } from "../supabaseClient.ts"
+import type { NotebookRepository } from "../../domain/notebook/NotebookRepository.ts"
+import type { NotebookQueryService } from "../../usecases/queries/NotebookQueryService.ts"
+import type { Notebook } from "../../domain/types.ts"
+import sql from "../postgresClient.ts"
 
 function toNotebook(row: Record<string, unknown>): Notebook {
   return {
@@ -13,42 +14,50 @@ function toNotebook(row: Record<string, unknown>): Notebook {
   }
 }
 
-export class SupabaseNotebookRepository implements NotebookRepository {
+export class SupabaseNotebookRepository implements NotebookRepository, NotebookQueryService {
   async findByUserIdAndIds(userId: string, ids: string[]): Promise<Notebook[]> {
-    const { data, error } = await supabase
-      .from("notebooks")
-      .select("*")
-      .eq("user_id", userId)
-      .in("id", ids)
-    if (error) throw new DBError(error.message)
-    return (data ?? []).map(toNotebook)
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT * FROM notebooks WHERE user_id = ${userId} AND id = ANY(${ids})
+      `
+      return rows.map(toNotebook)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
   async findByUserId(userId: string): Promise<Notebook[]> {
-    const { data, error } = await supabase.from("notebooks").select("*").eq("user_id", userId)
-    if (error) throw new DBError(error.message)
-    return (data ?? []).map(toNotebook)
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT * FROM notebooks WHERE user_id = ${userId}
+      `
+      return rows.map(toNotebook)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
   async create(notebook: Notebook): Promise<void> {
-    const { error } = await supabase.from("notebooks").insert({
-      id: notebook.id,
-      user_id: notebook.userId,
-      name: notebook.name,
-      created_at: notebook.createdAt.toISOString(),
-      updated_at: notebook.updatedAt.toISOString(),
-    })
-    if (error) throw new DBError(error.message)
+    try {
+      await sql`
+        INSERT INTO notebooks (id, user_id, name, created_at, updated_at)
+        VALUES (${notebook.id}, ${notebook.userId}, ${notebook.name},
+                ${notebook.createdAt.toISOString()}, ${notebook.updatedAt.toISOString()})
+      `
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
   async update(notebook: Notebook): Promise<void> {
-    const { error } = await supabase
-      .from("notebooks")
-      .update({
-        name: notebook.name,
-        updated_at: notebook.updatedAt.toISOString(),
-      })
-      .eq("id", notebook.id)
-    if (error) throw new DBError(error.message)
+    try {
+      await sql`
+        UPDATE notebooks
+        SET name = ${notebook.name}, updated_at = ${notebook.updatedAt.toISOString()}
+        WHERE id = ${notebook.id}
+      `
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 }

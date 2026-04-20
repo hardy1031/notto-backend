@@ -1,10 +1,10 @@
-import type { AIRepository } from "../../repositories/aiRepository.ts"
-import type { AILearnResponse, ContextObject } from "../../repositories/types.ts"
+import type { AIService } from "../../usecases/AIService.ts"
+import type { AILearnResponse, ContextObject } from "../types.ts"
 
 export async function askAI(
   contextObject: ContextObject,
   question: string,
-  aiRepo: AIRepository
+  aiRepo: AIService
 ): Promise<AILearnResponse> {
   return aiRepo.askAI(contextObject, question)
 }

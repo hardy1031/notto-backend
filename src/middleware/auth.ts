@@ -1,8 +1,8 @@
 import type { MiddlewareHandler } from "hono"
-import { SupabaseAuthRepository } from "../infrastructure/supabaseAuthRepository.ts"
+import { SupabaseAuthService } from "../infrastructure/supabaseAuthService.ts"
 import type { AppVariables } from "../types/hono.ts"
 
-const authRepo = new SupabaseAuthRepository()
+const authService = new SupabaseAuthService()
 
 export const authMiddleware: MiddlewareHandler<{ Variables: AppVariables }> = async (c, next) => {
   const authHeader = c.req.header("Authorization")
@@ -11,7 +11,7 @@ export const authMiddleware: MiddlewareHandler<{ Variables: AppVariables }> = as
   }
 
   const token = authHeader.slice(7)
-  const userId = await authRepo.verifyToken(token)
+  const userId = await authService.verifyToken(token)
 
   if (!userId) {
     return c.json({ error: { code: "UNAUTHORIZED", message: "Invalid or expired token" } }, 401)

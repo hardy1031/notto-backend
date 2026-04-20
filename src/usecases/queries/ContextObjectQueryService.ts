@@ -1,9 +1,8 @@
-import type { ContextObject } from "./types.ts"
+import type { ContextObject } from "../../domain/types.ts"
 
-export interface ContextObjectRepository {
+export interface ContextObjectQueryService {
   findByNoteIds(noteIds: string[]): Promise<ContextObject[]>
   findByUserId(userId: string): Promise<ContextObject[]>
   findWithoutQuizzes(noteIds: string[]): Promise<ContextObject[]>
-  bulkCreate(contextObjects: ContextObject[]): Promise<void>
   findByUserAndId(userId: string, id: string): Promise<ContextObject | null>
 }

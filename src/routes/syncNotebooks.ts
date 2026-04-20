@@ -2,7 +2,7 @@ import { Hono } from "hono"
 import { SupabaseNotePieceRepository } from "../infrastructure/db/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../infrastructure/db/supabaseNoteRepository.ts"
 import { SupabaseNotebookRepository } from "../infrastructure/db/supabaseNotebookRepository.ts"
-import { S3NoteStorageRepository } from "../infrastructure/s3NoteStorageRepository.ts"
+import { S3NoteStorageService } from "../infrastructure/s3NoteStorageService.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { validate } from "../middleware/validate.ts"
 import { syncNotebooksSchema } from "../schemas/sync.ts"
@@ -24,17 +24,17 @@ syncNotebooksRouter.post(
     const notebookRepo = new SupabaseNotebookRepository()
     const noteRepo = new SupabaseNoteRepository()
     const notePieceRepo = new SupabaseNotePieceRepository()
-    const noteStorage = new S3NoteStorageRepository()
+    const noteStorage = new S3NoteStorageService()
 
     // sync notebooks first, then notes (notes depend on notebooks existing on server)
     const notebooksResult = await SyncNotebooksUseCase(
       {
         userId,
-        notebooks: body.notebooks.map((nb) => ({
-          id: nb.id,
-          name: nb.name,
-          createdAt: new Date(nb.created_at),
-          updatedAt: new Date(nb.updated_at),
+        clientNotebooks: body.notebooks.map((notebook) => ({
+          id: notebook.id,
+          name: notebook.name,
+          createdAt: new Date(notebook.created_at),
+          updatedAt: new Date(notebook.updated_at),
         })),
       },
       { notebookRepo }
@@ -43,7 +43,7 @@ syncNotebooksRouter.post(
     const notesResult = await SyncNotesUseCase(
       {
         userId,
-        notes: body.notes.map((note) => ({
+        clientNotes: body.notes.map((note) => ({
           id: note.id,
           notebookId: note.notebook_id,
           name: note.name,
@@ -56,18 +56,19 @@ syncNotebooksRouter.post(
     )
 
     return c.json({
-      notebooks: notebooksResult.notebooks.map((nb) => ({
-        id: nb.id,
-        name: nb.name,
-        created_at: nb.createdAt.toISOString(),
-        updated_at: nb.updatedAt.toISOString(),
+      notebooks: notebooksResult.clientNotebooks.map((notebook) => ({
+        id: notebook.id,
+        name: notebook.name,
+        created_at: notebook.createdAt.toISOString(),
+        updated_at: notebook.updatedAt.toISOString(),
       })),
-      notes: notesResult.notes.map((note) => ({
+      notes: notesResult.clientNotes.map(({ note, content }) => ({
         id: note.id,
         notebook_id: note.notebookId,
         name: note.name,
         created_at: note.createdAt.toISOString(),
         updated_at: note.updatedAt.toISOString(),
+        content,
       })),
     })
   }

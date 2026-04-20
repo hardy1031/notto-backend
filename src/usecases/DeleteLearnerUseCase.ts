@@ -1,13 +1,13 @@
-import type { AuthRepository } from "../repositories/authRepository.ts"
-import type { NoteStorageRepository } from "../repositories/noteStorageRepository.ts"
+import type { UserRepository } from "../domain/user/UserRepository.ts"
+import type { NoteStorageService } from "./NoteStorageService.ts"
 
 export async function DeleteLearnerUseCase(
   userId: string,
-  authRepo: AuthRepository,
-  noteStorage: NoteStorageRepository
+  userRepo: UserRepository,
+  noteStorage: NoteStorageService
 ): Promise<void> {
   // Clean up S3 objects before removing the auth record.
   // DB rows are handled by ON DELETE CASCADE from auth.users.
   await noteStorage.deleteAllForUser(userId)
-  await authRepo.deleteLearner(userId)
+  await userRepo.deleteUser(userId)
 }

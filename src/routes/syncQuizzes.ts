@@ -1,10 +1,10 @@
 import { Hono } from "hono"
-import { MockAIRepository } from "../infrastructure/ai/geminiAIRepository.ts"
+import { MockAIService } from "../infrastructure/ai/geminiAIService.ts"
 import { SupabaseContextObjectRepository } from "../infrastructure/db/supabaseContextObjectRepository.ts"
 import { SupabaseNotePieceRepository } from "../infrastructure/db/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../infrastructure/db/supabaseNoteRepository.ts"
 import { SupabaseQuizRepository } from "../infrastructure/db/supabaseQuizRepository.ts"
-import { S3NoteStorageRepository } from "../infrastructure/s3NoteStorageRepository.ts"
+import { S3NoteStorageService } from "../infrastructure/s3NoteStorageService.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { userRateLimit } from "../middleware/rateLimit.ts"
 import { validate } from "../middleware/validate.ts"
@@ -32,11 +32,11 @@ syncQuizzesRouter.post(
       },
       {
         noteRepo: new SupabaseNoteRepository(),
-        noteStorage: new S3NoteStorageRepository(),
+        noteStorage: new S3NoteStorageService(),
         notePieceRepo: new SupabaseNotePieceRepository(),
         contextObjectRepo: new SupabaseContextObjectRepository(),
         quizRepo: new SupabaseQuizRepository(),
-        aiRepo: new MockAIRepository(),
+        aiRepo: new MockAIService(),
       }
     )
 

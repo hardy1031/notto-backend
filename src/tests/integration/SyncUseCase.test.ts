@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test"
-import { supabase } from "../../infrastructure/supabaseClient.ts"
+import { createClient } from "@supabase/supabase-js"
+
+const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  auth: { autoRefreshToken: false, persistSession: false },
+})
 import { SupabaseNotePieceRepository } from "../../infrastructure/db/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../../infrastructure/db/supabaseNoteRepository.ts"
 import { SupabaseNotebookRepository } from "../../infrastructure/db/supabaseNotebookRepository.ts"
-import { MockNoteStorageRepository } from "../mocks/mockNoteStorageRepository.ts"
+import { MockNoteStorageService } from "../mocks/mockNoteStorageService.ts"
 import { SyncNotebooksUseCase } from "../../usecases/SyncNotebooksUseCase.ts"
 import { SyncNotesUseCase } from "../../usecases/SyncNotesUseCase.ts"
 
@@ -14,7 +18,7 @@ const TEST_PASSWORD = "password123"
 const notebookRepo = new SupabaseNotebookRepository()
 const noteRepo = new SupabaseNoteRepository()
 const notePieceRepo = new SupabaseNotePieceRepository()
-const noteStorage = new MockNoteStorageRepository()
+const noteStorage = new MockNoteStorageService()
 
 const notebookDeps = { notebookRepo }
 const noteDeps = { notebookRepo, noteRepo, notePieceRepo, noteStorage }
@@ -51,7 +55,7 @@ describe("SyncNotebooksUseCase", () => {
     const notebookId = "aaaaaaaa-0000-0000-0000-000000000001"
 
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "スラング", createdAt: new Date(), updatedAt: new Date() }] },
+      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "スラング", createdAt: new Date(), updatedAt: new Date() }] },
       notebookDeps
     )
 
@@ -67,11 +71,11 @@ describe("SyncNotebooksUseCase", () => {
     const newerUpdatedAt = new Date("2026-01-02T00:00:00Z")
 
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "original", createdAt, updatedAt: originalUpdatedAt }] },
+      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "original", createdAt, updatedAt: originalUpdatedAt }] },
       notebookDeps
     )
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "updated", createdAt, updatedAt: newerUpdatedAt }] },
+      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "updated", createdAt, updatedAt: newerUpdatedAt }] },
       notebookDeps
     )
 
@@ -84,11 +88,11 @@ describe("SyncNotebooksUseCase", () => {
     const updatedAt = new Date("2026-01-01T00:00:00Z")
 
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "original", createdAt: updatedAt, updatedAt }] },
+      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "original", createdAt: updatedAt, updatedAt }] },
       notebookDeps
     )
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "should not update", createdAt: updatedAt, updatedAt }] },
+      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "should not update", createdAt: updatedAt, updatedAt }] },
       notebookDeps
     )
 
@@ -102,7 +106,7 @@ describe("SyncNotesUseCase", () => {
 
   beforeEach(async () => {
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, notebooks: [{ id: notebookId, name: "test", createdAt: new Date(), updatedAt: new Date() }] },
+      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "test", createdAt: new Date(), updatedAt: new Date() }] },
       notebookDeps
     )
   })
@@ -113,7 +117,7 @@ describe("SyncNotesUseCase", () => {
     const result = await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notes: [{
+        clientNotes: [{
           id: noteId,
           notebookId,
           name: "スラング",
@@ -138,7 +142,7 @@ describe("SyncNotesUseCase", () => {
     await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notes: [{
+        clientNotes: [{
           id: noteId,
           notebookId,
           name: "スラング",
@@ -156,7 +160,7 @@ describe("SyncNotesUseCase", () => {
     await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notes: [{
+        clientNotes: [{
           id: noteId,
           notebookId,
           name: "スラング updated",
@@ -180,7 +184,7 @@ describe("SyncNotesUseCase", () => {
     await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notes: [{
+        clientNotes: [{
           id: noteId,
           notebookId,
           name: "スラング",
@@ -195,7 +199,7 @@ describe("SyncNotesUseCase", () => {
     const result = await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        notes: [{
+        clientNotes: [{
           id: noteId,
           notebookId,
           name: "スラング",
@@ -217,7 +221,7 @@ describe("SyncNotesUseCase", () => {
       SyncNotesUseCase(
         {
           userId: TEST_USER_ID,
-          notes: [{
+          clientNotes: [{
             id: "bbbbbbbb-0000-0000-0000-000000000099",
             notebookId: unknownNotebookId,
             name: "test",

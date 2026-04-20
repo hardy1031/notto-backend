@@ -1,7 +1,7 @@
 import { DBError } from "../../errors/index.ts"
-import type { QuizRepository } from "../../repositories/quizRepository.ts"
-import type { Quiz } from "../../repositories/types.ts"
-import { supabase } from "../supabaseClient.ts"
+import type { QuizQueryService } from "../../usecases/queries/QuizQueryService.ts"
+import type { Quiz } from "../../domain/types.ts"
+import sql from "../postgresClient.ts"
 
 function toQuiz(row: Record<string, unknown>): Quiz {
   return {
@@ -16,52 +16,49 @@ function toQuiz(row: Record<string, unknown>): Quiz {
   }
 }
 
-export class SupabaseQuizRepository implements QuizRepository {
+export class SupabaseQuizRepository implements QuizQueryService {
   async findByContextObjectIds(contextObjectIds: string[]): Promise<Quiz[]> {
-    const { data, error } = await supabase
-      .from("quizzes")
-      .select("*")
-      .in("context_object_id", contextObjectIds)
-    if (error) throw new DBError(error.message)
-    return (data ?? []).map(toQuiz)
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT * FROM quizzes WHERE context_object_id = ANY(${contextObjectIds})
+      `
+      return rows.map(toQuiz)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
   async findByUserId(userId: string): Promise<Quiz[]> {
-    const { data, error } = await supabase
-      .from("quizzes")
-      .select("*, context_objects!inner(note_pieces!inner(notes!inner(notebooks!inner(user_id))))")
-      .eq("context_objects.note_pieces.notes.notebooks.user_id", userId)
-    if (error) throw new DBError(error.message)
-    return (data ?? []).map(toQuiz)
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT q.*
+        FROM quizzes q
+        JOIN context_objects co ON co.id = q.context_object_id
+        JOIN note_pieces np ON np.id = co.note_piece_id
+        JOIN notes n ON n.id = np.note_id
+        JOIN notebooks nb ON nb.id = n.notebook_id
+        WHERE nb.user_id = ${userId}
+      `
+      return rows.map(toQuiz)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
   async findByIdAndUserId(id: string, userId: string): Promise<Quiz | null> {
-    const { data, error } = await supabase
-      .from("quizzes")
-      .select("*, context_objects!inner(note_pieces!inner(notes!inner(notebooks!inner(user_id))))")
-      .eq("id", id)
-      .eq("context_objects.note_pieces.notes.notebooks.user_id", userId)
-      .single()
-    if (error) {
-      if (error.code === "PGRST116") return null
-      throw new DBError(error.message)
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT q.*
+        FROM quizzes q
+        JOIN context_objects co ON co.id = q.context_object_id
+        JOIN note_pieces np ON np.id = co.note_piece_id
+        JOIN notes n ON n.id = np.note_id
+        JOIN notebooks nb ON nb.id = n.notebook_id
+        WHERE q.id = ${id} AND nb.user_id = ${userId}
+      `
+      return rows.length > 0 ? toQuiz(rows[0]!) : null
+    } catch (e) {
+      throw new DBError(String(e))
     }
-    return data ? toQuiz(data as Record<string, unknown>) : null
-  }
-
-  async bulkCreate(quizzes: Quiz[]): Promise<void> {
-    const { error } = await supabase.from("quizzes").insert(
-      quizzes.map((q) => ({
-        id: q.id,
-        context_object_id: q.contextObjectId,
-        type: q.type,
-        question_sentence: q.questionSentence,
-        answer: q.answer,
-        choice_pool: q.choicePool,
-        created_at: q.createdAt.toISOString(),
-        updated_at: q.updatedAt.toISOString(),
-      }))
-    )
-    if (error) throw new DBError(error.message)
   }
 }

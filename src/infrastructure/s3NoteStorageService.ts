@@ -6,7 +6,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3"
 import { S3Error } from "../errors/index.ts"
-import type { NoteStorageRepository } from "../repositories/noteStorageRepository.ts"
+import type { NoteStorageService } from "../usecases/NoteStorageService.ts"
 
 function createClient() {
   const region = process.env.AWS_REGION
@@ -31,7 +31,7 @@ function getBucket() {
   return bucket
 }
 
-export class S3NoteStorageRepository implements NoteStorageRepository {
+export class S3NoteStorageService implements NoteStorageService {
   private readonly client: S3Client
   private readonly bucket: string
 

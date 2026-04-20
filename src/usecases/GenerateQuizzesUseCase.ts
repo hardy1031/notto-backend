@@ -1,13 +1,14 @@
-import { findUninterpretedPieces } from "../domain/contextObject/findUninterpretedPieces.ts"
+import { findUninterpretedPieces } from "../domain/note/note_piece/findUninterpretedPieces.ts"
 import { generateContextObjects } from "../domain/contextObject/generateContextObject.ts"
-import { generateQuizzes } from "../domain/quiz/generateQuizzes.ts"
-import type { AIRepository } from "../repositories/aiRepository.ts"
-import type { ContextObjectRepository } from "../repositories/contextObjectRepository.ts"
-import type { NotePieceRepository } from "../repositories/notePieceRepository.ts"
-import type { NoteRepository } from "../repositories/noteRepository.ts"
-import type { NoteStorageRepository } from "../repositories/noteStorageRepository.ts"
-import type { QuizRepository } from "../repositories/quizRepository.ts"
-import type { ContextObject, ParsedNote, Quiz } from "../repositories/types.ts"
+import { generateQuizzes } from "../domain/contextObject/quiz/generateQuizzes.ts"
+import type { AIService } from "./AIService.ts"
+import type { ContextObjectRepository } from "../domain/contextObject/ContextObjectRepository.ts"
+import type { ContextObjectQueryService } from "./queries/ContextObjectQueryService.ts"
+import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
+import type { NoteQueryService } from "./queries/NoteQueryService.ts"
+import type { NoteStorageService } from "./NoteStorageService.ts"
+import type { QuizQueryService } from "./queries/QuizQueryService.ts"
+import type { ContextObject, ParsedNote, Quiz } from "../domain/types.ts"
 
 export type GenerateQuizzesInput = {
   userId: string
@@ -23,12 +24,12 @@ export type GenerateQuizzesOutput = {
 export async function GenerateQuizzesUseCase(
   input: GenerateQuizzesInput,
   deps: {
-    noteRepo: NoteRepository
-    noteStorage: NoteStorageRepository
-    notePieceRepo: NotePieceRepository
-    contextObjectRepo: ContextObjectRepository
-    quizRepo: QuizRepository
-    aiRepo: AIRepository
+    noteRepo: NoteQueryService
+    noteStorage: NoteStorageService
+    notePieceRepo: NotePieceQueryService
+    contextObjectRepo: ContextObjectRepository & ContextObjectQueryService
+    quizRepo: QuizQueryService
+    aiRepo: AIService
   }
 ): Promise<GenerateQuizzesOutput> {
   const { userId, clientContextObjectIds, clientQuizIds } = input
@@ -109,7 +110,7 @@ export async function GenerateQuizzesUseCase(
   })
 
   if (newQuizzes.length > 0) {
-    await deps.quizRepo.bulkCreate(newQuizzes)
+    await deps.contextObjectRepo.bulkCreateQuizzes(newQuizzes)
   }
 
   // return context objects and quizzes the server has that the client does not

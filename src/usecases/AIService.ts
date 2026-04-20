@@ -3,9 +3,9 @@ import type {
   ContextObject,
   GeneratedContextObject,
   GeneratedQuiz,
-} from "./types.ts"
+} from "../domain/types.ts"
 
-export interface AIRepository {
+export interface AIService {
   generateContextObjects(pieces: { expression: string; annotation: string }[]): Promise<GeneratedContextObject[]>
   generateQuizzes(contextObjects: ContextObject[]): Promise<GeneratedQuiz[]>
   askAI(contextObject: ContextObject, question: string): Promise<AILearnResponse>

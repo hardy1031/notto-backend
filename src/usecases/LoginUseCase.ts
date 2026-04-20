@@ -1,4 +1,6 @@
-import type { AuthRepository, AuthUser } from "../repositories/authRepository.ts"
+import type { AuthService } from "./AuthService.ts"
+import type { UserQueryService } from "./queries/UserQueryService.ts"
+import type { User } from "../domain/types.ts"
 
 export type LoginInput = {
   email: string
@@ -7,12 +9,15 @@ export type LoginInput = {
 
 export type LoginOutput = {
   token: string
-  user: AuthUser
+  user: User
 }
 
 export async function LoginUseCase(
   input: LoginInput,
-  authRepo: AuthRepository
+  authService: AuthService,
+  userQueryService: UserQueryService
 ): Promise<LoginOutput> {
-  return authRepo.authenticateUser(input.email, input.password)
+  const { token, userId } = await authService.authenticateUser(input.email, input.password)
+  const user = await userQueryService.getUser(userId)
+  return { token, user }
 }

@@ -1,7 +1,8 @@
 import { DBError } from "../../errors/index.ts"
-import type { QuizRunRepository } from "../../repositories/quizRunRepository.ts"
-import type { QuizRecord, QuizRun, QuizRunWithRecords } from "../../repositories/types.ts"
-import { supabase } from "../supabaseClient.ts"
+import type { QuizRunRepository } from "../../domain/quizRun/QuizRunRepository.ts"
+import type { QuizRunQueryService } from "../../usecases/queries/QuizRunQueryService.ts"
+import type { QuizRecord, QuizRun, QuizRunWithRecords } from "../../domain/types.ts"
+import sql from "../postgresClient.ts"
 
 function toQuizRun(row: Record<string, unknown>): QuizRun {
   return {
@@ -37,77 +38,76 @@ function groupRunsWithRecords(runs: QuizRun[], records: QuizRecord[]): QuizRunWi
   }))
 }
 
-export class SupabaseQuizRunRepository implements QuizRunRepository {
+export class SupabaseQuizRunRepository implements QuizRunRepository, QuizRunQueryService {
   async findByUserId(userId: string): Promise<QuizRunWithRecords[]> {
-    const { data: runsData, error: runsError } = await supabase
-      .from("quiz_runs")
-      .select("*")
-      .eq("user_id", userId)
-    if (runsError) throw new DBError(runsError.message)
+    try {
+      const runs = (
+        await sql<Record<string, unknown>[]>`SELECT * FROM quiz_runs WHERE user_id = ${userId}`
+      ).map(toQuizRun)
 
-    const runs = (runsData ?? []).map(toQuizRun)
-    const runIds = runs.map((r) => r.id)
-    if (runIds.length === 0) return []
+      if (runs.length === 0) return []
 
-    const { data: recordsData, error: recordsError } = await supabase
-      .from("quiz_records")
-      .select("*")
-      .in("quiz_run_id", runIds)
-    if (recordsError) throw new DBError(recordsError.message)
+      const runIds = runs.map((r) => r.id)
+      const records = (
+        await sql<Record<string, unknown>[]>`SELECT * FROM quiz_records WHERE quiz_run_id = ANY(${runIds})`
+      ).map(toQuizRecord)
 
-    const records = (recordsData ?? []).map(toQuizRecord)
-    return groupRunsWithRecords(runs, records)
+      return groupRunsWithRecords(runs, records)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
   async findByUserIdAndIds(userId: string, ids: string[]): Promise<QuizRunWithRecords[]> {
-    const { data: runsData, error: runsError } = await supabase
-      .from("quiz_runs")
-      .select("*")
-      .eq("user_id", userId)
-      .in("id", ids)
-    if (runsError) throw new DBError(runsError.message)
+    try {
+      const runs = (
+        await sql<Record<string, unknown>[]>`
+          SELECT * FROM quiz_runs WHERE user_id = ${userId} AND id = ANY(${ids})
+        `
+      ).map(toQuizRun)
 
-    const runs = (runsData ?? []).map(toQuizRun)
-    const runIds = runs.map((r) => r.id)
-    if (runIds.length === 0) return []
+      if (runs.length === 0) return []
 
-    const { data: recordsData, error: recordsError } = await supabase
-      .from("quiz_records")
-      .select("*")
-      .in("quiz_run_id", runIds)
-    if (recordsError) throw new DBError(recordsError.message)
+      const runIds = runs.map((r) => r.id)
+      const records = (
+        await sql<Record<string, unknown>[]>`SELECT * FROM quiz_records WHERE quiz_run_id = ANY(${runIds})`
+      ).map(toQuizRecord)
 
-    const records = (recordsData ?? []).map(toQuizRecord)
-    return groupRunsWithRecords(runs, records)
+      return groupRunsWithRecords(runs, records)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
   async save(
     quizRun: QuizRun,
     quizRecords: QuizRecord[]
   ): Promise<{ quizRun: QuizRun; quizRecords: QuizRecord[] }> {
-    const { error: runError } = await supabase.from("quiz_runs").insert({
-      id: quizRun.id,
-      user_id: quizRun.userId,
-      started_at: quizRun.startedAt.toISOString(),
-      completed_at: quizRun.completedAt ? quizRun.completedAt.toISOString() : null,
-    })
-    if (runError) throw new DBError(runError.message)
+    try {
+      await sql`
+        INSERT INTO quiz_runs (id, user_id, started_at, completed_at)
+        VALUES (${quizRun.id}, ${quizRun.userId}, ${quizRun.startedAt.toISOString()},
+                ${quizRun.completedAt ? quizRun.completedAt.toISOString() : null})
+      `
 
-    if (quizRecords.length > 0) {
-      const { error: recordsError } = await supabase.from("quiz_records").insert(
-        quizRecords.map((r) => ({
+      if (quizRecords.length > 0) {
+        const values = quizRecords.map((r) => ({
           id: r.id,
           quiz_run_id: r.quizRunId,
           quiz_id: r.quizId,
-          choices: r.choices,
+          choices: JSON.stringify(r.choices),
           user_answer: r.userAnswer,
           is_correct: r.isCorrect,
           created_at: r.createdAt.toISOString(),
         }))
-      )
-      if (recordsError) throw new DBError(recordsError.message)
-    }
+        await sql`
+          INSERT INTO quiz_records ${sql(values, "id", "quiz_run_id", "quiz_id", "choices", "user_answer", "is_correct", "created_at")}
+        `
+      }
 
-    return { quizRun, quizRecords }
+      return { quizRun, quizRecords }
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 }

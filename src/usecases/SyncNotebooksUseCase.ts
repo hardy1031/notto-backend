@@ -1,7 +1,6 @@
-import { createNotebook } from "../domain/notebook/createNotebook.ts"
-import { updateNotebook } from "../domain/notebook/updateNotebook.ts"
-import type { NotebookRepository } from "../repositories/notebookRepository.ts"
-import type { Notebook } from "../repositories/types.ts"
+import type { NotebookRepository } from "../domain/notebook/NotebookRepository.ts"
+import type { NotebookQueryService } from "./queries/NotebookQueryService.ts"
+import type { Notebook } from "../domain/types.ts"
 
 export type SyncNotebookInput = {
   id: string
@@ -11,47 +10,43 @@ export type SyncNotebookInput = {
 }
 
 export type SyncNotebooksOutput = {
-  notebooks: Notebook[]
+  clientNotebooks: Notebook[]
 }
 
 export async function SyncNotebooksUseCase(
   input: {
     userId: string
-    notebooks: SyncNotebookInput[]
+    clientNotebooks: SyncNotebookInput[]
   },
   deps: {
-    notebookRepo: NotebookRepository
+    notebookRepo: NotebookRepository & NotebookQueryService
   }
 ): Promise<SyncNotebooksOutput> {
-  const { userId, notebooks } = input
+  const { userId, clientNotebooks } = input
 
   // sync notebooks from client to server (LWW by updatedAt)
-  const clientIds = notebooks.map((nb) => nb.id)
-  const existingNotebooks =
-    clientIds.length > 0
-      ? await deps.notebookRepo.findByUserIdAndIds(userId, clientIds)
-      : []
-  const existingMap = new Map(existingNotebooks.map((nb) => [nb.id, nb]))
+  const clientNotebookIds = clientNotebooks.map((notebook) => notebook.id)
+  const serverNotebooksById = new Map<string, Notebook>()
+  if (clientNotebookIds.length > 0) {
+    const serverNotebooks = await deps.notebookRepo.findByUserIdAndIds(userId, clientNotebookIds)
+    for (const notebook of serverNotebooks) {
+      serverNotebooksById.set(notebook.id, notebook)
+    }
+  }
 
-  for (const notebook of notebooks) {
-    const existing = existingMap.get(notebook.id)
-    if (!existing) {
-      await createNotebook(
-        { id: notebook.id, userId, name: notebook.name, createdAt: notebook.createdAt, updatedAt: notebook.updatedAt },
-        deps.notebookRepo
-      )
-    } else if (notebook.updatedAt > existing.updatedAt) {
-      await updateNotebook(
-        { ...existing, name: notebook.name, updatedAt: notebook.updatedAt },
-        deps.notebookRepo
-      )
+  for (const notebook of clientNotebooks) {
+    const serverNotebook = serverNotebooksById.get(notebook.id)
+    if (!serverNotebook) {
+      await deps.notebookRepo.create({ id: notebook.id, userId, name: notebook.name, createdAt: notebook.createdAt, updatedAt: notebook.updatedAt })
+    } else if (notebook.updatedAt > serverNotebook.updatedAt) {
+      await deps.notebookRepo.update({ ...serverNotebook, name: notebook.name, updatedAt: notebook.updatedAt })
     }
   }
 
   // return notebooks the server has that the client does not
   const serverNotebooks = await deps.notebookRepo.findByUserId(userId)
-  const clientIdSet = new Set(clientIds)
+  const clientNotebookIdSet = new Set(clientNotebookIds)
   return {
-    notebooks: serverNotebooks.filter((nb) => !clientIdSet.has(nb.id)),
+    clientNotebooks: serverNotebooks.filter((notebook) => !clientNotebookIdSet.has(notebook.id)),
   }
 }

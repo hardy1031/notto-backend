@@ -1,4 +1,4 @@
-import type { ContextObject, NotePiece } from "../../repositories/types.ts"
+import type { ContextObject, NotePiece } from "../../types.ts"
 
 export function findUninterpretedPieces(
   notePieces: NotePiece[],

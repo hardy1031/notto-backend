@@ -1,6 +1,6 @@
 import { Hono } from "hono"
-import { SupabaseAuthRepository } from "../infrastructure/supabaseAuthRepository.ts"
-import { S3NoteStorageRepository } from "../infrastructure/s3NoteStorageRepository.ts"
+import { SupabaseUserRepository } from "../infrastructure/db/supabaseUserRepository.ts"
+import { S3NoteStorageService } from "../infrastructure/s3NoteStorageService.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { validate } from "../middleware/validate.ts"
 import { updateLearnerSchema } from "../schemas/users.ts"
@@ -9,14 +9,14 @@ import { DeleteLearnerUseCase } from "../usecases/DeleteLearnerUseCase.ts"
 import { GetLearnerUseCase } from "../usecases/GetLearnerUseCase.ts"
 import { UpdateLearnerUseCase } from "../usecases/UpdateLearnerUseCase.ts"
 
-const authRepo = new SupabaseAuthRepository()
+const userRepo = new SupabaseUserRepository()
 
 export const usersRouter = new Hono<{ Variables: AppVariables }>()
 
 usersRouter.use("/me", authMiddleware)
 usersRouter.use("/me/*", authMiddleware)
 
-function formatLearner(learner: {
+function formatUser(user: {
   id: string
   userName: string
   email: string
@@ -25,19 +25,19 @@ function formatLearner(learner: {
   createdAt: Date
 }) {
   return {
-    id: learner.id,
-    user_name: learner.userName,
-    email: learner.email,
-    first_language: learner.firstLanguage,
-    target_language: learner.targetLanguage,
-    created_at: learner.createdAt.toISOString(),
+    id: user.id,
+    user_name: user.userName,
+    email: user.email,
+    first_language: user.firstLanguage,
+    target_language: user.targetLanguage,
+    created_at: user.createdAt.toISOString(),
   }
 }
 
 usersRouter.get("/me", async (c) => {
   const userId = c.get("userId")
-  const learner = await GetLearnerUseCase(userId, authRepo)
-  return c.json({ user: formatLearner(learner) })
+  const user = await GetLearnerUseCase(userId, userRepo)
+  return c.json({ user: formatUser(user) })
 })
 
 usersRouter.patch(
@@ -46,21 +46,22 @@ usersRouter.patch(
   async (c) => {
     const userId = c.get("userId")
     const body = c.req.valid("json")
-    const learner = await UpdateLearnerUseCase(
+    const user = await UpdateLearnerUseCase(
       userId,
       {
         userName: body.user_name,
         firstLanguage: body.first_language,
         targetLanguage: body.target_language,
       },
-      authRepo
+      userRepo,
+      userRepo
     )
-    return c.json({ user: formatLearner(learner) })
+    return c.json({ user: formatUser(user) })
   }
 )
 
 usersRouter.delete("/me", async (c) => {
   const userId = c.get("userId")
-  await DeleteLearnerUseCase(userId, authRepo, new S3NoteStorageRepository())
+  await DeleteLearnerUseCase(userId, userRepo, new S3NoteStorageService())
   return c.body(null, 204)
 })

@@ -1,4 +1,6 @@
-import type { AuthRepository, Learner } from "../repositories/authRepository.ts"
+import type { UserRepository } from "../domain/user/UserRepository.ts"
+import type { UserQueryService } from "./queries/UserQueryService.ts"
+import type { User } from "../domain/types.ts"
 
 export type UpdateLearnerInput = {
   userName?: string
@@ -9,7 +11,9 @@ export type UpdateLearnerInput = {
 export async function UpdateLearnerUseCase(
   userId: string,
   input: UpdateLearnerInput,
-  authRepo: AuthRepository
-): Promise<Learner> {
-  return authRepo.updateLearner(userId, input)
+  userRepo: UserRepository,
+  userQueryService: UserQueryService
+): Promise<User> {
+  await userRepo.updateUser(userId, input)
+  return userQueryService.getUser(userId)
 }

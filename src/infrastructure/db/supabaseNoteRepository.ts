@@ -1,7 +1,8 @@
 import { DBError } from "../../errors/index.ts"
-import type { NoteRepository } from "../../repositories/noteRepository.ts"
-import type { Note } from "../../repositories/types.ts"
-import { supabase } from "../supabaseClient.ts"
+import type { NoteRepository } from "../../domain/note/NoteRepository.ts"
+import type { NoteQueryService } from "../../usecases/queries/NoteQueryService.ts"
+import type { Note, NotePiece } from "../../domain/types.ts"
+import sql from "../postgresClient.ts"
 
 function toNote(row: Record<string, unknown>): Note {
   return {
@@ -14,43 +15,75 @@ function toNote(row: Record<string, unknown>): Note {
   }
 }
 
-export class SupabaseNoteRepository implements NoteRepository {
+export class SupabaseNoteRepository implements NoteRepository, NoteQueryService {
   async findByUserIdAndIds(userId: string, ids: string[]): Promise<Note[]> {
-    const { data, error } = await supabase
-      .from("notes")
-      .select("*, notebooks!inner(user_id)")
-      .eq("notebooks.user_id", userId)
-      .in("id", ids)
-    if (error) throw new DBError(error.message)
-    return (data ?? []).map(toNote)
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT n.*
+        FROM notes n
+        JOIN notebooks nb ON nb.id = n.notebook_id
+        WHERE nb.user_id = ${userId} AND n.id = ANY(${ids})
+      `
+      return rows.map(toNote)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
   async findByUserId(userId: string): Promise<Note[]> {
-    const { data, error } = await supabase
-      .from("notes")
-      .select("*, notebooks!inner(user_id)")
-      .eq("notebooks.user_id", userId)
-    if (error) throw new DBError(error.message)
-    return (data ?? []).map(toNote)
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT n.*
+        FROM notes n
+        JOIN notebooks nb ON nb.id = n.notebook_id
+        WHERE nb.user_id = ${userId}
+      `
+      return rows.map(toNote)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
-  async create(note: Note): Promise<void> {
-    const { error } = await supabase.from("notes").insert({
-      id: note.id,
-      notebook_id: note.notebookId,
-      name: note.name,
-      s3_key: note.s3Key,
-      created_at: note.createdAt.toISOString(),
-      updated_at: note.updatedAt.toISOString(),
-    })
-    if (error) throw new DBError(error.message)
+  async createWithNotePieces(note: Note, pieces: NotePiece[]): Promise<void> {
+    try {
+      await sql.begin(async (tx) => {
+        await tx`
+          INSERT INTO notes (id, notebook_id, name, s3_key, created_at, updated_at)
+          VALUES (${note.id}, ${note.notebookId}, ${note.name}, ${note.s3Key},
+                  ${note.createdAt.toISOString()}, ${note.updatedAt.toISOString()})
+        `
+        if (pieces.length > 0) {
+          const values = pieces.map((p) => ({ id: p.id, note_id: p.noteId, created_at: p.createdAt.toISOString() }))
+          await tx`
+            INSERT INTO note_pieces ${tx(values, "id", "note_id", "created_at")}
+            ON CONFLICT (id) DO UPDATE SET note_id = EXCLUDED.note_id, created_at = EXCLUDED.created_at
+          `
+        }
+      })
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 
-  async update(note: Note): Promise<void> {
-    const { error } = await supabase
-      .from("notes")
-      .update({ name: note.name, updated_at: note.updatedAt.toISOString() })
-      .eq("id", note.id)
-    if (error) throw new DBError(error.message)
+  async updateWithNotePieces(note: Note, pieces: NotePiece[]): Promise<void> {
+    try {
+      await sql.begin(async (tx) => {
+        await tx`
+          UPDATE notes
+          SET name = ${note.name}, updated_at = ${note.updatedAt.toISOString()}
+          WHERE id = ${note.id}
+        `
+        await tx`DELETE FROM note_pieces WHERE note_id = ${note.id}`
+        if (pieces.length > 0) {
+          const values = pieces.map((p) => ({ id: p.id, note_id: p.noteId, created_at: p.createdAt.toISOString() }))
+          await tx`
+            INSERT INTO note_pieces ${tx(values, "id", "note_id", "created_at")}
+            ON CONFLICT (id) DO UPDATE SET note_id = EXCLUDED.note_id, created_at = EXCLUDED.created_at
+          `
+        }
+      })
+    } catch (e) {
+      throw new DBError(String(e))
+    }
   }
 }

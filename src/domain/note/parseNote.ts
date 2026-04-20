@@ -1,4 +1,4 @@
-import type { ParsedNote } from "../../repositories/types.ts"
+import type { ParsedNote } from "../types.ts"
 
 // Parses a note in the following format:
 //   @note {note_id}

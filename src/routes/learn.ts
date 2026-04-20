@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { MockAIRepository } from "../infrastructure/ai/geminiAIRepository.ts"
+import { MockAIService } from "../infrastructure/ai/geminiAIService.ts"
 import { SupabaseContextObjectRepository } from "../infrastructure/db/supabaseContextObjectRepository.ts"
 import { authMiddleware } from "../middleware/auth.ts"
 import { userRateLimit } from "../middleware/rateLimit.ts"
@@ -28,7 +28,7 @@ learnRouter.post(
       },
       {
         contextObjectRepo: new SupabaseContextObjectRepository(),
-        aiRepo: new MockAIRepository(),
+        aiRepo: new MockAIService(),
       }
     )
 

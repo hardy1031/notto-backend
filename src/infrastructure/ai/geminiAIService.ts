@@ -1,13 +1,13 @@
 import { AIUnavailableError } from "../../errors/index.ts"
-import type { AIRepository } from "../../repositories/aiRepository.ts"
+import type { AIService } from "../../usecases/AIService.ts"
 import type {
   AILearnResponse,
   ContextObject,
   GeneratedContextObject,
   GeneratedQuiz,
-} from "../../repositories/types.ts"
+} from "../../domain/types.ts"
 
-export class MockAIRepository implements AIRepository {
+export class MockAIService implements AIService {
   async generateContextObjects(pieces: { expression: string; annotation: string }[]): Promise<GeneratedContextObject[]> {
     return pieces.map(({ expression, annotation }) => ({
       expression,
@@ -80,7 +80,7 @@ export class MockAIRepository implements AIRepository {
   }
 }
 
-export class GeminiAIRepository implements AIRepository {
+export class GeminiAIService implements AIService {
   private client: import("@anthropic-ai/sdk").Anthropic
 
   constructor() {

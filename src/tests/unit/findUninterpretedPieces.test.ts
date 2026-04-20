@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
-import { findUninterpretedPieces } from "../../domain/contextObject/findUninterpretedPieces.ts"
-import type { ContextObject, NotePiece } from "../../repositories/types.ts"
+import { findUninterpretedPieces } from "../../domain/note/note_piece/findUninterpretedPieces.ts"
+import type { ContextObject, NotePiece } from "../../domain/types.ts"
 
 const makePiece = (id: string): NotePiece => ({
   id,

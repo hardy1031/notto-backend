@@ -1,4 +1,4 @@
-export interface NoteStorageRepository {
+export interface NoteStorageService {
   upload(s3Key: string, content: string): Promise<void>
   fetch(s3Key: string): Promise<string>
   deleteAllForUser(userId: string): Promise<void>

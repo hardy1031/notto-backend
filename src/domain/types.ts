@@ -1,3 +1,12 @@
+export type User = {
+  id: string
+  userName: string
+  email: string
+  firstLanguage: string
+  targetLanguage: string
+  createdAt: Date
+}
+
 export type QuizType = "choose_context" | "choose_pronunciation" | "fill_metadata"
 
 export type Notebook = {
