@@ -1,3 +1,4 @@
+import { handle } from "hono/aws-lambda"
 import { Hono } from "hono"
 import { bodyLimit } from "hono/body-limit"
 import { cors } from "hono/cors"
@@ -54,9 +55,12 @@ app.onError((err, c) => {
   return c.json({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } }, 500)
 })
 
-const port = Number(process.env.PORT ?? 3000)
+// Lambda handler — used when deployed to AWS Lambda via API Gateway
+export const handler = handle(app)
 
-export default {
-  port,
-  fetch: app.fetch,
+// Bun dev server — used for local development only
+if (process.env.NODE_ENV !== "production") {
+  const port = Number(process.env.PORT ?? 3000)
+  Bun.serve({ port, fetch: app.fetch })
+  console.log(`Server running at http://localhost:${port}`)
 }
