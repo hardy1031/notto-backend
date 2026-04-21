@@ -34,13 +34,18 @@ export async function SyncNotebooksUseCase(
     }
   }
 
+  // create a notebook if server doesn't have one, update if one exists already
   for (const notebook of clientNotebooks) {
     const serverNotebook = serverNotebooksById.get(notebook.id)
     if (!serverNotebook) {
-      await deps.notebookRepo.create({ id: notebook.id, userId, name: notebook.name, createdAt: notebook.createdAt, updatedAt: notebook.updatedAt })
+      await deps.notebookRepo.create({ id: notebook.id, userId, name: notebook.name, createdAt: notebook.createdAt, updatedAt: notebook.updatedAt, syncedAt: new Date() })
     } else if (notebook.updatedAt > serverNotebook.updatedAt) {
-      await deps.notebookRepo.update({ ...serverNotebook, name: notebook.name, updatedAt: notebook.updatedAt })
+      await deps.notebookRepo.update({ ...serverNotebook, name: notebook.name, updatedAt: notebook.updatedAt, syncedAt: new Date() })
     }
+  }
+
+  if (clientNotebookIds.length > 0) {
+    await deps.notebookRepo.updateSyncedAt(clientNotebookIds, new Date())
   }
 
   // return notebooks the server has that the client does not

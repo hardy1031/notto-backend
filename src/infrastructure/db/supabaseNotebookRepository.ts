@@ -11,6 +11,7 @@ function toNotebook(row: Record<string, unknown>): Notebook {
     name: row.name as string,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
+    syncedAt: new Date(row.synced_at as string),
   }
 }
 
@@ -40,10 +41,18 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
   async create(notebook: Notebook): Promise<void> {
     try {
       await sql`
-        INSERT INTO notebooks (id, user_id, name, created_at, updated_at)
+        INSERT INTO notebooks (id, user_id, name, created_at, updated_at, synced_at)
         VALUES (${notebook.id}, ${notebook.userId}, ${notebook.name},
-                ${notebook.createdAt.toISOString()}, ${notebook.updatedAt.toISOString()})
+                ${notebook.createdAt.toISOString()}, ${notebook.updatedAt.toISOString()}, ${notebook.syncedAt.toISOString()})
       `
+    } catch (e) {
+      throw new DBError(String(e))
+    }
+  }
+
+  async updateSyncedAt(ids: string[], syncedAt: Date): Promise<void> {
+    try {
+      await sql`UPDATE notebooks SET synced_at = ${syncedAt.toISOString()} WHERE id = ANY(${ids})`
     } catch (e) {
       throw new DBError(String(e))
     }
@@ -53,7 +62,7 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
     try {
       await sql`
         UPDATE notebooks
-        SET name = ${notebook.name}, updated_at = ${notebook.updatedAt.toISOString()}
+        SET name = ${notebook.name}, updated_at = ${notebook.updatedAt.toISOString()}, synced_at = ${notebook.syncedAt.toISOString()}
         WHERE id = ${notebook.id}
       `
     } catch (e) {

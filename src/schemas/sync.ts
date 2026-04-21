@@ -18,7 +18,13 @@ export const syncNotebooksSchema = z.object({
         id: z.string().uuid(),
         notebook_id: z.string().uuid(),
         name: z.string().min(1).max(100),
-        content: z.string().min(1).max(50_000),
+        content: z.array(
+          z.object({
+            notePieceId: z.string().uuid(),
+            expression: z.string().min(1),
+            annotation: z.string().min(1),
+          })
+        ).max(200),
         created_at: z.string().datetime(),
         updated_at: z.string().datetime(),
       })

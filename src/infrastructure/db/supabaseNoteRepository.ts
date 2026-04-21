@@ -12,6 +12,7 @@ function toNote(row: Record<string, unknown>): Note {
     s3Key: row.s3_key as string,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
+    syncedAt: new Date(row.synced_at as string),
   }
 }
 
@@ -48,9 +49,9 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
     try {
       await sql.begin(async (tx) => {
         await tx`
-          INSERT INTO notes (id, notebook_id, name, s3_key, created_at, updated_at)
+          INSERT INTO notes (id, notebook_id, name, s3_key, created_at, updated_at, synced_at)
           VALUES (${note.id}, ${note.notebookId}, ${note.name}, ${note.s3Key},
-                  ${note.createdAt.toISOString()}, ${note.updatedAt.toISOString()})
+                  ${note.createdAt.toISOString()}, ${note.updatedAt.toISOString()}, ${note.syncedAt.toISOString()})
         `
         if (pieces.length > 0) {
           const values = pieces.map((p) => ({ id: p.id, note_id: p.noteId, created_at: p.createdAt.toISOString() }))
@@ -65,12 +66,20 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
     }
   }
 
+  async updateSyncedAt(ids: string[], syncedAt: Date): Promise<void> {
+    try {
+      await sql`UPDATE notes SET synced_at = ${syncedAt.toISOString()} WHERE id = ANY(${ids})`
+    } catch (e) {
+      throw new DBError(String(e))
+    }
+  }
+
   async updateWithNotePieces(note: Note, pieces: NotePiece[]): Promise<void> {
     try {
       await sql.begin(async (tx) => {
         await tx`
           UPDATE notes
-          SET name = ${note.name}, updated_at = ${note.updatedAt.toISOString()}
+          SET name = ${note.name}, updated_at = ${note.updatedAt.toISOString()}, synced_at = ${note.syncedAt.toISOString()}
           WHERE id = ${note.id}
         `
         await tx`DELETE FROM note_pieces WHERE note_id = ${note.id}`

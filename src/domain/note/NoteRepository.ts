@@ -4,4 +4,5 @@ import type { Note, NotePiece } from "../types.ts"
 export interface NoteRepository {
   createWithNotePieces(note: Note, pieces: NotePiece[]): Promise<void>
   updateWithNotePieces(note: Note, pieces: NotePiece[]): Promise<void>
+  updateSyncedAt(ids: string[], syncedAt: Date): Promise<void>
 }

@@ -6,4 +6,5 @@ export interface QuizRunRepository {
     quizRun: QuizRun,
     quizRecords: QuizRecord[]
   ): Promise<{ quizRun: QuizRun; quizRecords: QuizRecord[] }>
+  updateSyncedAt(ids: string[], syncedAt: Date): Promise<void>
 }

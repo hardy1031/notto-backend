@@ -8,7 +8,7 @@ import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
 import type { NoteQueryService } from "./queries/NoteQueryService.ts"
 import type { NoteStorageService } from "./NoteStorageService.ts"
 import type { QuizQueryService } from "./queries/QuizQueryService.ts"
-import type { ContextObject, ParsedNote, Quiz } from "../domain/types.ts"
+import type { ContextObject, NotePieceContent, Quiz } from "../domain/types.ts"
 
 export type GenerateQuizzesInput = {
   userId: string
@@ -46,13 +46,13 @@ export async function GenerateQuizzesUseCase(
   const uninterpretedPieces = findUninterpretedPieces(notePieces, existingContextObjects)
 
   // build a map of parsed notes fetched from storage (lazy, cached per note)
-  const parsedNoteCache = new Map<string, ParsedNote>()
-  const getParsedNote = async (noteId: string): Promise<ParsedNote> => {
+  const parsedNoteCache = new Map<string, NotePieceContent[]>()
+  const getNotePieceContents = async (noteId: string): Promise<NotePieceContent[]> => {
     if (parsedNoteCache.has(noteId)) return parsedNoteCache.get(noteId)!
     const note = allNotes.find((n) => n.id === noteId)
     if (!note) throw new Error(`Note not found: ${noteId}`)
     const json = await deps.noteStorage.fetch(note.s3Key)
-    const parsed = JSON.parse(json) as ParsedNote
+    const parsed = JSON.parse(json) as NotePieceContent[]
     parsedNoteCache.set(noteId, parsed)
     return parsed
   }
@@ -60,8 +60,8 @@ export async function GenerateQuizzesUseCase(
   // collect pieces with their content, then generate all context objects in one AI call
   const piecesWithContent: { piece: (typeof uninterpretedPieces)[number]; expression: string; annotation: string }[] = []
   for (const piece of uninterpretedPieces) {
-    const parsedNote = await getParsedNote(piece.noteId)
-    const pieceContent = parsedNote.pieces.find((p) => p.notePieceId === piece.id)
+    const parsedNote = await getNotePieceContents(piece.noteId)
+    const pieceContent = parsedNote.find((p) => p.notePieceId === piece.id)
     if (!pieceContent) continue
     piecesWithContent.push({ piece, expression: pieceContent.expression, annotation: pieceContent.annotation })
   }

@@ -15,6 +15,7 @@ export type Notebook = {
   name: string
   createdAt: Date
   updatedAt: Date
+  syncedAt: Date
 }
 
 export type Note = {
@@ -24,6 +25,7 @@ export type Note = {
   s3Key: string
   createdAt: Date
   updatedAt: Date
+  syncedAt: Date
 }
 
 export type NotePiece = {
@@ -32,13 +34,10 @@ export type NotePiece = {
   createdAt: Date
 }
 
-export type ParsedNote = {
-  noteId: string
-  pieces: {
-    notePieceId: string
-    expression: string
-    annotation: string
-  }[]
+export type NotePieceContent = {
+  notePieceId: string
+  expression: string
+  annotation: string
 }
 
 export type ContextObject = {
@@ -72,6 +71,7 @@ export type QuizRun = {
   userId: string
   startedAt: Date
   completedAt: Date | null
+  syncedAt: Date
 }
 
 export type QuizRecord = {

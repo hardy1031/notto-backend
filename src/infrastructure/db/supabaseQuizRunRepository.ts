@@ -10,6 +10,7 @@ function toQuizRun(row: Record<string, unknown>): QuizRun {
     userId: row.user_id as string,
     startedAt: new Date(row.started_at as string),
     completedAt: row.completed_at ? new Date(row.completed_at as string) : null,
+    syncedAt: new Date(row.synced_at as string),
   }
 }
 
@@ -79,15 +80,23 @@ export class SupabaseQuizRunRepository implements QuizRunRepository, QuizRunQuer
     }
   }
 
+  async updateSyncedAt(ids: string[], syncedAt: Date): Promise<void> {
+    try {
+      await sql`UPDATE quiz_runs SET synced_at = ${syncedAt.toISOString()} WHERE id = ANY(${ids})`
+    } catch (e) {
+      throw new DBError(String(e))
+    }
+  }
+
   async save(
     quizRun: QuizRun,
     quizRecords: QuizRecord[]
   ): Promise<{ quizRun: QuizRun; quizRecords: QuizRecord[] }> {
     try {
       await sql`
-        INSERT INTO quiz_runs (id, user_id, started_at, completed_at)
+        INSERT INTO quiz_runs (id, user_id, started_at, completed_at, synced_at)
         VALUES (${quizRun.id}, ${quizRun.userId}, ${quizRun.startedAt.toISOString()},
-                ${quizRun.completedAt ? quizRun.completedAt.toISOString() : null})
+                ${quizRun.completedAt ? quizRun.completedAt.toISOString() : null}, ${quizRun.syncedAt.toISOString()})
       `
 
       if (quizRecords.length > 0) {
