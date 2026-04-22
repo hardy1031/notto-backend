@@ -33,8 +33,9 @@ export async function SyncQuizRunsUseCase(
     quizRuns: SyncQuizRunInput[]
   },
   deps: {
-    quizRepo: QuizQueryService
-    quizRunRepo: QuizRunRepository & QuizRunQueryService
+    quizQueryService: QuizQueryService
+    quizRunRepo: QuizRunRepository
+    quizRunQueryService: QuizRunQueryService
   }
 ): Promise<SyncQuizRunsOutput> {
   const { userId, quizRuns } = input
@@ -42,7 +43,7 @@ export async function SyncQuizRunsUseCase(
 
   // insert quiz runs the server does not have yet
   if (quizRuns.length > 0) {
-    const existingQuizRuns = await deps.quizRunRepo.findByUserIdAndIds(userId, clientQuizRunIds)
+    const existingQuizRuns = await deps.quizRunQueryService.findByUserIdAndIds(userId, clientQuizRunIds)
     const existingIds = new Set(existingQuizRuns.map((qr) => qr.quizRun.id))
 
     for (const quizRun of quizRuns) {
@@ -50,7 +51,7 @@ export async function SyncQuizRunsUseCase(
 
       // validate that all quizzes in the records belong to the user
       for (const record of quizRun.records) {
-        const quiz = await deps.quizRepo.findByIdAndUserId(record.quizId, userId)
+        const quiz = await deps.quizQueryService.findByIdAndUserId(record.quizId, userId)
         if (!quiz) throw new NotFoundError(`Quiz not found: ${record.quizId}`)
       }
 
@@ -80,7 +81,7 @@ export async function SyncQuizRunsUseCase(
 
   // return quiz runs the server has that the client does not
   const clientIdSet = new Set(clientQuizRunIds)
-  const allServerQuizRuns = await deps.quizRunRepo.findByUserId(userId)
+  const allServerQuizRuns = await deps.quizRunQueryService.findByUserId(userId)
   const newQuizRuns = allServerQuizRuns.filter((qr) => !clientIdSet.has(qr.quizRun.id))
 
   return { quizRuns: newQuizRuns }

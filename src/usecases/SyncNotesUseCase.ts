@@ -4,6 +4,7 @@ import type { NoteQueryService } from "./queries/NoteQueryService.ts"
 import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
 import type { NoteStorageService } from "./NoteStorageService.ts"
 import type { NotebookQueryService } from "./queries/NotebookQueryService.ts"
+import { parsedNoteSchema } from "../schemas/sync.ts"
 import type { Note, NotePieceContent } from "../domain/types.ts"
 
 export type SyncNoteInput = {
@@ -26,9 +27,10 @@ export async function SyncNotesUseCase(
     clientNotes: SyncNoteInput[]
   },
   deps: {
-    notebookRepo: NotebookQueryService
-    noteRepo: NoteRepository & NoteQueryService
-    notePieceRepo: NotePieceQueryService
+    notebookQueryService: NotebookQueryService
+    noteRepo: NoteRepository
+    noteQueryService: NoteQueryService
+    notePieceQueryService: NotePieceQueryService
     noteStorage: NoteStorageService
   }
 ): Promise<SyncNotesOutput> {
@@ -37,7 +39,7 @@ export async function SyncNotesUseCase(
   // validate that all clientNotebookIds exist on the server
   const clientNotebookIds = [...new Set(clientNotes.map((note) => note.notebookId))]
   if (clientNotebookIds.length > 0) {
-    const serverNotebooks = await deps.notebookRepo.findByUserIdAndIds(userId, clientNotebookIds)
+    const serverNotebooks = await deps.notebookQueryService.findByUserIdAndIds(userId, clientNotebookIds)
     const serverNotebookIds = new Set(serverNotebooks.map((notebook) => notebook.id))
     for (const clientNotebookId of clientNotebookIds) {
       if (!serverNotebookIds.has(clientNotebookId)) {
@@ -50,7 +52,7 @@ export async function SyncNotesUseCase(
   const clientNoteIds = clientNotes.map((note) => note.id)
   const serverNotesById = new Map<string, Note>()
   if (clientNoteIds.length > 0) {
-    const serverNotes = await deps.noteRepo.findByUserIdAndIds(userId, clientNoteIds)
+    const serverNotes = await deps.noteQueryService.findByUserIdAndIds(userId, clientNoteIds)
     for (const serverNote of serverNotes) {
       serverNotesById.set(serverNote.id, serverNote)
     }
@@ -82,7 +84,7 @@ export async function SyncNotesUseCase(
   }
 
   // return notes the server has that the client does not (including content from storage)
-  const serverNotes = await deps.noteRepo.findByUserId(userId)
+  const serverNotes = await deps.noteQueryService.findByUserId(userId)
   const clientNoteIdSet = new Set(clientNoteIds) // Set for O(1) lookup in filter below
   const missingNotes = serverNotes.filter((note) => !clientNoteIdSet.has(note.id))
   const missingNoteIds = missingNotes.map((note) => note.id)
@@ -94,7 +96,7 @@ export async function SyncNotesUseCase(
   const missingNotesWithContent = await Promise.all(
     missingNotes.map(async (note) => {
       const json = await deps.noteStorage.fetch(note.s3Key)
-      return { note, content: JSON.parse(json) as NotePieceContent[] }
+      return { note, content: parsedNoteSchema.parse(JSON.parse(json)) }
     })
   )
   return { clientNotes: missingNotesWithContent, syncedNoteIds }

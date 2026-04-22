@@ -20,8 +20,8 @@ const noteRepo = new SupabaseNoteRepository()
 const notePieceRepo = new SupabaseNotePieceRepository()
 const noteStorage = new MockNoteStorageService()
 
-const notebookDeps = { notebookRepo }
-const noteDeps = { notebookRepo, noteRepo, notePieceRepo, noteStorage }
+const notebookDeps = { notebookRepo, notebookQueryService: notebookRepo }
+const noteDeps = { notebookQueryService: notebookRepo, noteRepo, noteQueryService: noteRepo, notePieceQueryService: notePieceRepo, noteStorage }
 
 async function cleanupUser() {
   await supabase.auth.admin.deleteUser(TEST_USER_ID)
@@ -121,7 +121,7 @@ describe("SyncNotesUseCase", () => {
           id: noteId,
           notebookId,
           name: "スラング",
-          content: "- 겠냐? :: rough dismissive question\n- 나중에 :: see you later",
+          content: [{ notePieceId: crypto.randomUUID(), expression: "겠냐?", annotation: "rough dismissive question" }, { notePieceId: crypto.randomUUID(), expression: "나중에", annotation: "see you later" }],
           createdAt: new Date(),
           updatedAt: new Date(),
         }],
@@ -146,7 +146,7 @@ describe("SyncNotesUseCase", () => {
           id: noteId,
           notebookId,
           name: "スラング",
-          content: "- 겠냐? :: rough dismissive question",
+          content: [{ notePieceId: crypto.randomUUID(), expression: "겠냐?", annotation: "rough dismissive question" }],
           createdAt: originalUpdatedAt,
           updatedAt: originalUpdatedAt,
         }],
@@ -164,7 +164,7 @@ describe("SyncNotesUseCase", () => {
           id: noteId,
           notebookId,
           name: "スラング updated",
-          content: "- 나중에 :: see you later\n- 화이팅 :: do your best",
+          content: [{ notePieceId: crypto.randomUUID(), expression: "나중에", annotation: "see you later" }, { notePieceId: crypto.randomUUID(), expression: "화이팅", annotation: "do your best" }],
           createdAt: originalUpdatedAt,
           updatedAt: newerUpdatedAt,
         }],
@@ -188,7 +188,7 @@ describe("SyncNotesUseCase", () => {
           id: noteId,
           notebookId,
           name: "スラング",
-          content: "- 겠냐? :: rough dismissive question",
+          content: [{ notePieceId: crypto.randomUUID(), expression: "겠냐?", annotation: "rough dismissive question" }],
           createdAt: updatedAt,
           updatedAt,
         }],
@@ -203,7 +203,7 @@ describe("SyncNotesUseCase", () => {
           id: noteId,
           notebookId,
           name: "スラング",
-          content: "- should not update :: this content",
+          content: [{ notePieceId: crypto.randomUUID(), expression: "should not update", annotation: "this content" }],
           createdAt: updatedAt,
           updatedAt,
         }],
@@ -225,7 +225,7 @@ describe("SyncNotesUseCase", () => {
             id: "bbbbbbbb-0000-0000-0000-000000000099",
             notebookId: unknownNotebookId,
             name: "test",
-            content: "- test :: test",
+            content: [{ notePieceId: crypto.randomUUID(), expression: "test", annotation: "test" }],
             createdAt: new Date(),
             updatedAt: new Date(),
           }],

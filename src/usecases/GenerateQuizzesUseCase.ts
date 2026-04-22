@@ -8,6 +8,7 @@ import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
 import type { NoteQueryService } from "./queries/NoteQueryService.ts"
 import type { NoteStorageService } from "./NoteStorageService.ts"
 import type { QuizQueryService } from "./queries/QuizQueryService.ts"
+import { parsedNoteSchema } from "../schemas/sync.ts"
 import type { ContextObject, NotePieceContent, Quiz } from "../domain/types.ts"
 
 export type GenerateQuizzesInput = {
@@ -27,8 +28,9 @@ export async function GenerateQuizzesUseCase(
     noteRepo: NoteQueryService
     noteStorage: NoteStorageService
     notePieceRepo: NotePieceQueryService
-    contextObjectRepo: ContextObjectRepository & ContextObjectQueryService
-    quizRepo: QuizQueryService
+    contextObjectRepo: ContextObjectRepository
+    contextObjectQueryService: ContextObjectQueryService
+    quizQueryService: QuizQueryService
     aiRepo: AIService
   }
 ): Promise<GenerateQuizzesOutput> {
@@ -42,7 +44,7 @@ export async function GenerateQuizzesUseCase(
 
   // find note pieces that have not been interpreted into context objects yet
   const notePieces = await deps.notePieceRepo.findByNoteIds(allNoteIds)
-  const existingContextObjects = await deps.contextObjectRepo.findByUserId(userId)
+  const existingContextObjects = await deps.contextObjectQueryService.findByUserId(userId)
   const uninterpretedPieces = findUninterpretedPieces(notePieces, existingContextObjects)
 
   // build a map of parsed notes fetched from storage (lazy, cached per note)
@@ -52,7 +54,7 @@ export async function GenerateQuizzesUseCase(
     const note = allNotes.find((n) => n.id === noteId)
     if (!note) throw new Error(`Note not found: ${noteId}`)
     const json = await deps.noteStorage.fetch(note.s3Key)
-    const parsed = JSON.parse(json) as NotePieceContent[]
+    const parsed = parsedNoteSchema.parse(JSON.parse(json))
     parsedNoteCache.set(noteId, parsed)
     return parsed
   }
@@ -91,7 +93,7 @@ export async function GenerateQuizzesUseCase(
   }
 
   // generate quizzes for context objects that don't have quizzes yet
-  const contextObjectsWithoutQuizzes = await deps.contextObjectRepo.findWithoutQuizzes(allNoteIds)
+  const contextObjectsWithoutQuizzes = await deps.contextObjectQueryService.findWithoutQuizzes(allNoteIds)
   const generatedQuizItems = await generateQuizzes(contextObjectsWithoutQuizzes, deps.aiRepo)
 
   const newQuizzes: Quiz[] = generatedQuizItems.map((generatedQuizItem) => {
@@ -117,11 +119,11 @@ export async function GenerateQuizzesUseCase(
   const clientContextObjectIdSet = new Set(clientContextObjectIds)
   const clientQuizIdSet = new Set(clientQuizIds)
 
-  const allContextObjects = await deps.contextObjectRepo.findByUserId(userId)
+  const allContextObjects = await deps.contextObjectQueryService.findByUserId(userId)
   const allContextObjectIds = allContextObjects.map((co) => co.id)
   const allQuizzes =
     allContextObjectIds.length > 0
-      ? await deps.quizRepo.findByContextObjectIds(allContextObjectIds)
+      ? await deps.quizQueryService.findByContextObjectIds(allContextObjectIds)
       : []
 
   return {

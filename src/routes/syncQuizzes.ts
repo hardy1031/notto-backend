@@ -35,7 +35,8 @@ syncQuizzesRouter.post(
         noteStorage: new S3NoteStorageService(),
         notePieceRepo: new SupabaseNotePieceRepository(),
         contextObjectRepo: new SupabaseContextObjectRepository(),
-        quizRepo: new SupabaseQuizRepository(),
+        contextObjectQueryService: new SupabaseContextObjectRepository(),
+        quizQueryService: new SupabaseQuizRepository(),
         aiRepo: new MockAIService(),
       }
     )

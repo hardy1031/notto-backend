@@ -1,5 +1,13 @@
 import { z } from "zod"
 
+export const notePieceContentSchema = z.object({
+  notePieceId: z.string().uuid(),
+  expression: z.string().min(1),
+  annotation: z.string().min(1),
+})
+
+export const parsedNoteSchema = z.array(notePieceContentSchema).max(200)
+
 export const syncNotebooksSchema = z.object({
   notebooks: z
     .array(
@@ -18,13 +26,7 @@ export const syncNotebooksSchema = z.object({
         id: z.string().uuid(),
         notebook_id: z.string().uuid(),
         name: z.string().min(1).max(100),
-        content: z.array(
-          z.object({
-            notePieceId: z.string().uuid(),
-            expression: z.string().min(1),
-            annotation: z.string().min(1),
-          })
-        ).max(200),
+        content: parsedNoteSchema,
         created_at: z.string().datetime(),
         updated_at: z.string().datetime(),
       })

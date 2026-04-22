@@ -36,8 +36,9 @@ syncQuizRunsRouter.post(
         })),
       },
       {
-        quizRepo: new SupabaseQuizRepository(),
+        quizQueryService: new SupabaseQuizRepository(),
         quizRunRepo: new SupabaseQuizRunRepository(),
+        quizRunQueryService: new SupabaseQuizRunRepository(),
       }
     )
 

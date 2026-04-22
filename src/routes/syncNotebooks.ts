@@ -37,7 +37,7 @@ syncNotebooksRouter.post(
           updatedAt: new Date(notebook.updated_at),
         })),
       },
-      { notebookRepo }
+      { notebookRepo, notebookQueryService: notebookRepo }
     )
 
     const notesResult = await SyncNotesUseCase(
@@ -52,7 +52,7 @@ syncNotebooksRouter.post(
           updatedAt: new Date(note.updated_at),
         })),
       },
-      { notebookRepo, noteRepo, notePieceRepo, noteStorage }
+      { notebookQueryService: notebookRepo, noteRepo, noteQueryService: noteRepo, notePieceQueryService: notePieceRepo, noteStorage }
     )
 
     return c.json({

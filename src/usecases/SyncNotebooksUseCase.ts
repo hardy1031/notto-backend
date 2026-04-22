@@ -19,7 +19,8 @@ export async function SyncNotebooksUseCase(
     clientNotebooks: SyncNotebookInput[]
   },
   deps: {
-    notebookRepo: NotebookRepository & NotebookQueryService
+    notebookRepo: NotebookRepository
+    notebookQueryService: NotebookQueryService
   }
 ): Promise<SyncNotebooksOutput> {
   const { userId, clientNotebooks } = input
@@ -28,7 +29,7 @@ export async function SyncNotebooksUseCase(
   const clientNotebookIds = clientNotebooks.map((notebook) => notebook.id)
   const serverNotebooksById = new Map<string, Notebook>()
   if (clientNotebookIds.length > 0) {
-    const serverNotebooks = await deps.notebookRepo.findByUserIdAndIds(userId, clientNotebookIds)
+    const serverNotebooks = await deps.notebookQueryService.findByUserIdAndIds(userId, clientNotebookIds)
     for (const notebook of serverNotebooks) {
       serverNotebooksById.set(notebook.id, notebook)
     }
@@ -49,7 +50,7 @@ export async function SyncNotebooksUseCase(
   }
 
   // return notebooks the server has that the client does not
-  const serverNotebooks = await deps.notebookRepo.findByUserId(userId)
+  const serverNotebooks = await deps.notebookQueryService.findByUserId(userId)
   const clientNotebookIdSet = new Set(clientNotebookIds)
   return {
     clientNotebooks: serverNotebooks.filter((notebook) => !clientNotebookIdSet.has(notebook.id)),
