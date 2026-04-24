@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
 import { ContextObjectEntity } from "../../domain/contextObject/ContextObjectEntity.ts"
-import { NotePieceEntity } from "../../domain/note/NotePieceEntity.ts"
+import { NotePieceEntity } from "../../domain/note/notePiece/NotePieceEntity.ts"
 
 const makePiece = (id: string): NotePieceEntity =>
   NotePieceEntity.create({ id, noteId: "note-1", createdAt: new Date() })

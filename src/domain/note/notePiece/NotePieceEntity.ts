@@ -1,4 +1,4 @@
-import type { ContextObjectEntity } from "../contextObject/ContextObjectEntity.ts"
+import type { ContextObjectEntity } from "../../contextObject/ContextObjectEntity.ts"
 
 type NotePieceProps = {
   id: string

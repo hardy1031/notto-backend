@@ -1,5 +1,5 @@
 import type { NoteEntity } from "./NoteEntity.ts"
-import type { NotePieceEntity } from "./NotePieceEntity.ts"
+import type { NotePieceEntity } from "./notePiece/NotePieceEntity.ts"
 
 /** Aggregate root: Note (includes NotePiece[]) */
 export interface NoteRepository {

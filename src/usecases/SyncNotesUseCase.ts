@@ -1,6 +1,6 @@
 import { NoteEntity } from "../domain/note/NoteEntity.ts"
-import { NotePieceEntity } from "../domain/note/NotePieceEntity.ts"
 import type { NoteRepository } from "../domain/note/NoteRepository.ts"
+import { NotePieceEntity } from "../domain/note/notePiece/NotePieceEntity.ts"
 import type { NotePieceContent } from "../domain/types.ts"
 import { NotFoundError } from "../errors/index.ts"
 import { parsedNoteSchema } from "../schemas/sync.ts"

@@ -1,6 +1,6 @@
 import { NoteEntity } from "../../domain/note/NoteEntity.ts"
-import type { NotePieceEntity } from "../../domain/note/NotePieceEntity.ts"
 import type { NoteRepository } from "../../domain/note/NoteRepository.ts"
+import type { NotePieceEntity } from "../../domain/note/notePiece/NotePieceEntity.ts"
 import { DBError } from "../../errors/index.ts"
 import type { NoteQueryService } from "../../usecases/queries/NoteQueryService.ts"
 import sql from "../postgresClient.ts"
