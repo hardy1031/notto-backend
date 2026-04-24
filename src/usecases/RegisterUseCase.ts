@@ -1,6 +1,6 @@
-import type { AuthService } from "./AuthService.ts"
+import type { UserEntity } from "../domain/user/UserEntity.ts"
 import type { UserRepository } from "../domain/user/UserRepository.ts"
-import type { User } from "../domain/types.ts"
+import type { AuthService } from "./AuthService.ts"
 
 export type RegisterInput = {
   userName: string
@@ -12,13 +12,13 @@ export type RegisterInput = {
 
 export type RegisterOutput = {
   token: string
-  user: User
+  user: UserEntity
 }
 
 export async function RegisterUseCase(
   input: RegisterInput,
   authService: AuthService,
-  userRepo: UserRepository & { getUser(userId: string): Promise<User> }
+  userRepo: UserRepository & { getUser(userId: string): Promise<UserEntity> }
 ): Promise<RegisterOutput> {
   const { token, userId } = await authService.createAuthUser(input.email, input.password)
   await userRepo.initUser(userId, {

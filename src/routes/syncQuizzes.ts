@@ -1,5 +1,5 @@
 import { Hono } from "hono"
-import { MockAIService } from "../infrastructure/ai/geminiAIService.ts"
+import { GeminiAIService } from "../infrastructure/ai/geminiAIService.ts"
 import { SupabaseContextObjectRepository } from "../infrastructure/db/supabaseContextObjectRepository.ts"
 import { SupabaseNotePieceRepository } from "../infrastructure/db/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../infrastructure/db/supabaseNoteRepository.ts"
@@ -17,58 +17,54 @@ export const syncQuizzesRouter = new Hono<{ Variables: AppVariables }>()
 syncQuizzesRouter.use("*", authMiddleware)
 syncQuizzesRouter.use("*", userRateLimit(20, 60 * 1000)) // 20 requests per minute
 
-syncQuizzesRouter.post(
-  "/",
-  validate("json", syncQuizzesSchema),
-  async (c) => {
-    const userId = c.get("userId")
-    const body = c.req.valid("json")
+syncQuizzesRouter.post("/", validate("json", syncQuizzesSchema), async (c) => {
+  const userId = c.get("userId")
+  const body = c.req.valid("json")
 
-    const result = await GenerateQuizzesUseCase(
-      {
-        userId,
-        clientContextObjectIds: body.context_object_ids,
-        clientQuizIds: body.quiz_ids,
-      },
-      {
-        noteRepo: new SupabaseNoteRepository(),
-        noteStorage: new S3NoteStorageService(),
-        notePieceRepo: new SupabaseNotePieceRepository(),
-        contextObjectRepo: new SupabaseContextObjectRepository(),
-        contextObjectQueryService: new SupabaseContextObjectRepository(),
-        quizQueryService: new SupabaseQuizRepository(),
-        aiRepo: new MockAIService(),
-      }
-    )
+  const result = await GenerateQuizzesUseCase(
+    {
+      userId,
+      clientContextObjectIds: body.context_object_ids,
+      clientQuizIds: body.quiz_ids,
+    },
+    {
+      noteRepo: new SupabaseNoteRepository(),
+      noteStorage: new S3NoteStorageService(),
+      notePieceRepo: new SupabaseNotePieceRepository(),
+      contextObjectRepo: new SupabaseContextObjectRepository(),
+      contextObjectQueryService: new SupabaseContextObjectRepository(),
+      quizQueryService: new SupabaseQuizRepository(),
+      aiRepo: new GeminiAIService(),
+    }
+  )
 
-    return c.json(
-      {
-        context_objects: result.contextObjects.map((co) => ({
-          id: co.id,
-          note_piece_id: co.notePieceId,
-          note_id: co.noteId,
-          expression: co.expression,
-          base_meaning: co.baseMeaning,
-          actual_nuance: co.actualNuance,
-          tone: co.tone,
-          formality: co.formality,
-          is_slang: co.isSlang,
-          example_dialogue: co.exampleDialogue,
-          created_at: co.createdAt.toISOString(),
-          updated_at: co.updatedAt.toISOString(),
-        })),
-        quizzes: result.quizzes.map((q) => ({
-          id: q.id,
-          context_object_id: q.contextObjectId,
-          type: q.type,
-          question_sentence: q.questionSentence,
-          answer: q.answer,
-          choice_pool: q.choicePool,
-          created_at: q.createdAt.toISOString(),
-          updated_at: q.updatedAt.toISOString(),
-        })),
-      },
-      201
-    )
-  }
-)
+  return c.json(
+    {
+      context_objects: result.contextObjects.map((co) => ({
+        id: co.id,
+        note_piece_id: co.notePieceId,
+        note_id: co.noteId,
+        expression: co.expression,
+        base_meaning: co.baseMeaning,
+        actual_nuance: co.actualNuance,
+        tone: co.tone,
+        formality: co.formality,
+        is_slang: co.isSlang,
+        example_dialogue: co.exampleDialogue,
+        created_at: co.createdAt.toISOString(),
+        updated_at: co.updatedAt.toISOString(),
+      })),
+      quizzes: result.quizzes.map((q) => ({
+        id: q.id,
+        context_object_id: q.contextObjectId,
+        type: q.type,
+        question_sentence: q.questionSentence,
+        answer: q.answer,
+        choice_pool: q.choicePool,
+        created_at: q.createdAt.toISOString(),
+        updated_at: q.updatedAt.toISOString(),
+      })),
+    },
+    201
+  )
+})

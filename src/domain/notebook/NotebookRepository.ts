@@ -1,8 +1,8 @@
-import type { Notebook } from "../types.ts"
+import type { NotebookEntity } from "./NotebookEntity.ts"
 
 /** Aggregate root: Notebook */
 export interface NotebookRepository {
-  create(notebook: Notebook): Promise<void>
-  update(notebook: Notebook): Promise<void>
+  create(notebook: NotebookEntity): Promise<void>
+  update(notebook: NotebookEntity): Promise<void>
   updateSyncedAt(ids: string[], syncedAt: Date): Promise<void>
 }

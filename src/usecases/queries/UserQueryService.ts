@@ -1,5 +1,5 @@
-import type { User } from "../../domain/types.ts"
+import type { UserEntity } from "../../domain/user/UserEntity.ts"
 
 export interface UserQueryService {
-  getUser(userId: string): Promise<User>
+  getUser(userId: string): Promise<UserEntity>
 }

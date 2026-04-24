@@ -1,9 +1,9 @@
 import { createClient } from "@supabase/supabase-js"
-import { DBError } from "../../errors/index.ts"
-import sql from "../postgresClient.ts"
-import type { User } from "../../domain/types.ts"
+import { UserEntity } from "../../domain/user/UserEntity.ts"
 import type { UserRepository } from "../../domain/user/UserRepository.ts"
+import { DBError } from "../../errors/index.ts"
 import type { UserQueryService } from "../../usecases/queries/UserQueryService.ts"
+import sql from "../postgresClient.ts"
 
 const supabaseUrl = process.env.SUPABASE_URL!
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -50,8 +50,10 @@ export class SupabaseUserRepository implements UserRepository, UserQueryService 
     if (error) throw new DBError(error.message)
   }
 
-  async getUser(userId: string): Promise<User> {
-    const rows = await sql<{ user_name: string; first_language: string; target_language: string }[]>`
+  async getUser(userId: string): Promise<UserEntity> {
+    const rows = await sql<
+      { user_name: string; first_language: string; target_language: string }[]
+    >`
       SELECT user_name, first_language, target_language FROM users WHERE id = ${userId}
     `
     if (rows.length === 0) throw new DBError("User not found")
@@ -60,13 +62,13 @@ export class SupabaseUserRepository implements UserRepository, UserQueryService 
     if (authError) throw new DBError(authError.message)
 
     const userData = rows[0]!
-    return {
+    return UserEntity.reconstruct({
       id: userId,
       userName: userData.user_name,
       email: authUser.user.email ?? "",
       firstLanguage: userData.first_language,
       targetLanguage: userData.target_language,
       createdAt: new Date(authUser.user.created_at),
-    }
+    })
   }
 }

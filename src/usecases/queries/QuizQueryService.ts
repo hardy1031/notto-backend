@@ -1,7 +1,7 @@
-import type { Quiz } from "../../domain/types.ts"
+import type { QuizEntity } from "../../domain/contextObject/quiz/QuizEntity.ts"
 
 export interface QuizQueryService {
-  findByContextObjectIds(contextObjectIds: string[]): Promise<Quiz[]>
-  findByUserId(userId: string): Promise<Quiz[]>
-  findByIdAndUserId(id: string, userId: string): Promise<Quiz | null>
+  findByContextObjectIds(contextObjectIds: string[]): Promise<QuizEntity[]>
+  findByUserId(userId: string): Promise<QuizEntity[]>
+  findByIdAndUserId(id: string, userId: string): Promise<QuizEntity | null>
 }

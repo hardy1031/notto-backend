@@ -1,11 +1,12 @@
-import { DBError } from "../../errors/index.ts"
+import { ContextObjectEntity } from "../../domain/contextObject/ContextObjectEntity.ts"
 import type { ContextObjectRepository } from "../../domain/contextObject/ContextObjectRepository.ts"
+import type { QuizEntity } from "../../domain/contextObject/quiz/QuizEntity.ts"
+import { DBError } from "../../errors/index.ts"
 import type { ContextObjectQueryService } from "../../usecases/queries/ContextObjectQueryService.ts"
-import type { ContextObject, Quiz } from "../../domain/types.ts"
 import sql from "../postgresClient.ts"
 
-function toContextObject(row: Record<string, unknown>): ContextObject {
-  return {
+function toContextObject(row: Record<string, unknown>): ContextObjectEntity {
+  return ContextObjectEntity.reconstruct({
     id: row.id as string,
     notePieceId: row.note_piece_id as string,
     noteId: row.note_id as string,
@@ -18,11 +19,13 @@ function toContextObject(row: Record<string, unknown>): ContextObject {
     exampleDialogue: row.example_dialogue as { speaker: string; text: string }[],
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
-  }
+  })
 }
 
-export class SupabaseContextObjectRepository implements ContextObjectRepository, ContextObjectQueryService {
-  async findByNoteIds(noteIds: string[]): Promise<ContextObject[]> {
+export class SupabaseContextObjectRepository
+  implements ContextObjectRepository, ContextObjectQueryService
+{
+  async findByNoteIds(noteIds: string[]): Promise<ContextObjectEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM context_objects WHERE note_id = ANY(${noteIds})
@@ -33,7 +36,7 @@ export class SupabaseContextObjectRepository implements ContextObjectRepository,
     }
   }
 
-  async findByUserId(userId: string): Promise<ContextObject[]> {
+  async findByUserId(userId: string): Promise<ContextObjectEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT co.*
@@ -49,7 +52,7 @@ export class SupabaseContextObjectRepository implements ContextObjectRepository,
     }
   }
 
-  async findWithoutQuizzes(noteIds: string[]): Promise<ContextObject[]> {
+  async findWithoutQuizzes(noteIds: string[]): Promise<ContextObjectEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT co.*
@@ -65,7 +68,7 @@ export class SupabaseContextObjectRepository implements ContextObjectRepository,
     }
   }
 
-  async bulkCreate(contextObjects: ContextObject[]): Promise<void> {
+  async bulkCreate(contextObjects: ContextObjectEntity[]): Promise<void> {
     if (contextObjects.length === 0) return
     try {
       const values = contextObjects.map((co) => ({
@@ -90,7 +93,7 @@ export class SupabaseContextObjectRepository implements ContextObjectRepository,
     }
   }
 
-  async bulkCreateQuizzes(quizzes: Quiz[]): Promise<void> {
+  async bulkCreateQuizzes(quizzes: QuizEntity[]): Promise<void> {
     if (quizzes.length === 0) return
     try {
       const values = quizzes.map((q) => ({
@@ -111,7 +114,7 @@ export class SupabaseContextObjectRepository implements ContextObjectRepository,
     }
   }
 
-  async findByUserAndId(userId: string, id: string): Promise<ContextObject | null> {
+  async findByUserAndId(userId: string, id: string): Promise<ContextObjectEntity | null> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT co.*

@@ -1,11 +1,13 @@
-import { NotFoundError } from "../errors/index.ts"
+import { NoteEntity } from "../domain/note/NoteEntity.ts"
+import { NotePieceEntity } from "../domain/note/NotePieceEntity.ts"
 import type { NoteRepository } from "../domain/note/NoteRepository.ts"
-import type { NoteQueryService } from "./queries/NoteQueryService.ts"
-import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
-import type { NoteStorageService } from "./NoteStorageService.ts"
-import type { NotebookQueryService } from "./queries/NotebookQueryService.ts"
+import type { NotePieceContent } from "../domain/types.ts"
+import { NotFoundError } from "../errors/index.ts"
 import { parsedNoteSchema } from "../schemas/sync.ts"
-import type { Note, NotePieceContent } from "../domain/types.ts"
+import type { NoteStorageService } from "./NoteStorageService.ts"
+import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
+import type { NoteQueryService } from "./queries/NoteQueryService.ts"
+import type { NotebookQueryService } from "./queries/NotebookQueryService.ts"
 
 export type SyncNoteInput = {
   id: string
@@ -17,7 +19,7 @@ export type SyncNoteInput = {
 }
 
 export type SyncNotesOutput = {
-  clientNotes: { note: Note; content: NotePieceContent[] }[]
+  clientNotes: { note: NoteEntity; content: NotePieceContent[] }[]
   syncedNoteIds: string[]
 }
 
@@ -39,7 +41,10 @@ export async function SyncNotesUseCase(
   // validate that all clientNotebookIds exist on the server
   const clientNotebookIds = [...new Set(clientNotes.map((note) => note.notebookId))]
   if (clientNotebookIds.length > 0) {
-    const serverNotebooks = await deps.notebookQueryService.findByUserIdAndIds(userId, clientNotebookIds)
+    const serverNotebooks = await deps.notebookQueryService.findByUserIdAndIds(
+      userId,
+      clientNotebookIds
+    )
     const serverNotebookIds = new Set(serverNotebooks.map((notebook) => notebook.id))
     for (const clientNotebookId of clientNotebookIds) {
       if (!serverNotebookIds.has(clientNotebookId)) {
@@ -50,7 +55,7 @@ export async function SyncNotesUseCase(
 
   // sync notes from client to server (LWW by updatedAt)
   const clientNoteIds = clientNotes.map((note) => note.id)
-  const serverNotesById = new Map<string, Note>()
+  const serverNotesById = new Map<string, NoteEntity>()
   if (clientNoteIds.length > 0) {
     const serverNotes = await deps.noteQueryService.findByUserIdAndIds(userId, clientNoteIds)
     for (const serverNote of serverNotes) {
@@ -63,20 +68,30 @@ export async function SyncNotesUseCase(
 
   for (const clientNote of clientNotes) {
     const serverNote = serverNotesById.get(clientNote.id)
-    const s3Key = `${userId}/${clientNote.notebookId}/${clientNote.id}.json`
-    const pieces = clientNote.content.map((p) => ({ id: p.notePieceId, noteId: clientNote.id, createdAt: now }))
+    const s3Key = NoteEntity.buildS3Key(userId, clientNote.notebookId, clientNote.id)
+    const pieces = clientNote.content.map((p) =>
+      NotePieceEntity.create({ id: p.notePieceId, noteId: clientNote.id, createdAt: now })
+    )
 
     if (!serverNote) {
       await deps.noteStorage.upload(s3Key, JSON.stringify(clientNote.content))
       await deps.noteRepo.createWithNotePieces(
-        { id: clientNote.id, notebookId: clientNote.notebookId, name: clientNote.name, s3Key, createdAt: clientNote.createdAt, updatedAt: clientNote.updatedAt, syncedAt: new Date() },
+        NoteEntity.create({
+          id: clientNote.id,
+          notebookId: clientNote.notebookId,
+          name: clientNote.name,
+          s3Key,
+          createdAt: clientNote.createdAt,
+          updatedAt: clientNote.updatedAt,
+          syncedAt: new Date(),
+        }),
         pieces
       )
       syncedNoteIds.push(clientNote.id)
     } else if (clientNote.updatedAt > serverNote.updatedAt) {
       await deps.noteStorage.upload(s3Key, JSON.stringify(clientNote.content))
       await deps.noteRepo.updateWithNotePieces(
-        { ...serverNote, name: clientNote.name, updatedAt: clientNote.updatedAt, syncedAt: new Date() },
+        serverNote.withUpdates(clientNote.name, clientNote.updatedAt, new Date()),
         pieces
       )
       syncedNoteIds.push(clientNote.id)

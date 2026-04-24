@@ -1,6 +1,6 @@
+import { NotebookEntity } from "../domain/notebook/NotebookEntity.ts"
 import type { NotebookRepository } from "../domain/notebook/NotebookRepository.ts"
 import type { NotebookQueryService } from "./queries/NotebookQueryService.ts"
-import type { Notebook } from "../domain/types.ts"
 
 export type SyncNotebookInput = {
   id: string
@@ -10,7 +10,7 @@ export type SyncNotebookInput = {
 }
 
 export type SyncNotebooksOutput = {
-  clientNotebooks: Notebook[]
+  clientNotebooks: NotebookEntity[]
 }
 
 export async function SyncNotebooksUseCase(
@@ -27,9 +27,12 @@ export async function SyncNotebooksUseCase(
 
   // sync notebooks from client to server (LWW by updatedAt)
   const clientNotebookIds = clientNotebooks.map((notebook) => notebook.id)
-  const serverNotebooksById = new Map<string, Notebook>()
+  const serverNotebooksById = new Map<string, NotebookEntity>()
   if (clientNotebookIds.length > 0) {
-    const serverNotebooks = await deps.notebookQueryService.findByUserIdAndIds(userId, clientNotebookIds)
+    const serverNotebooks = await deps.notebookQueryService.findByUserIdAndIds(
+      userId,
+      clientNotebookIds
+    )
     for (const notebook of serverNotebooks) {
       serverNotebooksById.set(notebook.id, notebook)
     }
@@ -39,9 +42,20 @@ export async function SyncNotebooksUseCase(
   for (const notebook of clientNotebooks) {
     const serverNotebook = serverNotebooksById.get(notebook.id)
     if (!serverNotebook) {
-      await deps.notebookRepo.create({ id: notebook.id, userId, name: notebook.name, createdAt: notebook.createdAt, updatedAt: notebook.updatedAt, syncedAt: new Date() })
+      await deps.notebookRepo.create(
+        NotebookEntity.create({
+          id: notebook.id,
+          userId,
+          name: notebook.name,
+          createdAt: notebook.createdAt,
+          updatedAt: notebook.updatedAt,
+          syncedAt: new Date(),
+        })
+      )
     } else if (notebook.updatedAt > serverNotebook.updatedAt) {
-      await deps.notebookRepo.update({ ...serverNotebook, name: notebook.name, updatedAt: notebook.updatedAt, syncedAt: new Date() })
+      await deps.notebookRepo.update(
+        serverNotebook.withUpdates(notebook.name, notebook.updatedAt, new Date())
+      )
     }
   }
 

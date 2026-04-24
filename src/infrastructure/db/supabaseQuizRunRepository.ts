@@ -1,21 +1,25 @@
-import { DBError } from "../../errors/index.ts"
+import {
+  QuizRecordEntity,
+  QuizRunEntity,
+  type QuizRunWithRecords,
+} from "../../domain/quizRun/QuizRunEntity.ts"
 import type { QuizRunRepository } from "../../domain/quizRun/QuizRunRepository.ts"
+import { DBError } from "../../errors/index.ts"
 import type { QuizRunQueryService } from "../../usecases/queries/QuizRunQueryService.ts"
-import type { QuizRecord, QuizRun, QuizRunWithRecords } from "../../domain/types.ts"
 import sql from "../postgresClient.ts"
 
-function toQuizRun(row: Record<string, unknown>): QuizRun {
-  return {
+function toQuizRun(row: Record<string, unknown>): QuizRunEntity {
+  return QuizRunEntity.reconstruct({
     id: row.id as string,
     userId: row.user_id as string,
     startedAt: new Date(row.started_at as string),
     completedAt: row.completed_at ? new Date(row.completed_at as string) : null,
     syncedAt: new Date(row.synced_at as string),
-  }
+  })
 }
 
-function toQuizRecord(row: Record<string, unknown>): QuizRecord {
-  return {
+function toQuizRecord(row: Record<string, unknown>): QuizRecordEntity {
+  return QuizRecordEntity.reconstruct({
     id: row.id as string,
     quizRunId: row.quiz_run_id as string,
     quizId: row.quiz_id as string,
@@ -23,15 +27,17 @@ function toQuizRecord(row: Record<string, unknown>): QuizRecord {
     userAnswer: (row.user_answer as string) ?? null,
     isCorrect: (row.is_correct as boolean) ?? null,
     createdAt: new Date(row.created_at as string),
-  }
+  })
 }
 
-function groupRunsWithRecords(runs: QuizRun[], records: QuizRecord[]): QuizRunWithRecords[] {
-  const recordsByRunId = new Map<string, QuizRecord[]>()
+function groupRunsWithRecords(
+  runs: QuizRunEntity[],
+  records: QuizRecordEntity[]
+): QuizRunWithRecords[] {
+  const recordsByRunId = new Map<string, QuizRecordEntity[]>()
   for (const record of records) {
     const existing = recordsByRunId.get(record.quizRunId) ?? []
-    existing.push(record)
-    recordsByRunId.set(record.quizRunId, existing)
+    recordsByRunId.set(record.quizRunId, [...existing, record])
   }
   return runs.map((run) => ({
     quizRun: run,
@@ -50,7 +56,9 @@ export class SupabaseQuizRunRepository implements QuizRunRepository, QuizRunQuer
 
       const runIds = runs.map((r) => r.id)
       const records = (
-        await sql<Record<string, unknown>[]>`SELECT * FROM quiz_records WHERE quiz_run_id = ANY(${runIds})`
+        await sql<
+          Record<string, unknown>[]
+        >`SELECT * FROM quiz_records WHERE quiz_run_id = ANY(${runIds})`
       ).map(toQuizRecord)
 
       return groupRunsWithRecords(runs, records)
@@ -71,7 +79,9 @@ export class SupabaseQuizRunRepository implements QuizRunRepository, QuizRunQuer
 
       const runIds = runs.map((r) => r.id)
       const records = (
-        await sql<Record<string, unknown>[]>`SELECT * FROM quiz_records WHERE quiz_run_id = ANY(${runIds})`
+        await sql<
+          Record<string, unknown>[]
+        >`SELECT * FROM quiz_records WHERE quiz_run_id = ANY(${runIds})`
       ).map(toQuizRecord)
 
       return groupRunsWithRecords(runs, records)
@@ -88,10 +98,7 @@ export class SupabaseQuizRunRepository implements QuizRunRepository, QuizRunQuer
     }
   }
 
-  async save(
-    quizRun: QuizRun,
-    quizRecords: QuizRecord[]
-  ): Promise<{ quizRun: QuizRun; quizRecords: QuizRecord[] }> {
+  async save(quizRun: QuizRunEntity, quizRecords: QuizRecordEntity[]): Promise<QuizRunWithRecords> {
     try {
       await sql`
         INSERT INTO quiz_runs (id, user_id, started_at, completed_at, synced_at)

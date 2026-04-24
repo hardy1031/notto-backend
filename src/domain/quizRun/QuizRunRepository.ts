@@ -1,10 +1,7 @@
-import type { QuizRecord, QuizRun } from "../types.ts"
+import type { QuizRecordEntity, QuizRunEntity, QuizRunWithRecords } from "./QuizRunEntity.ts"
 
 /** Aggregate root: QuizRun (includes QuizRecord[]) */
 export interface QuizRunRepository {
-  save(
-    quizRun: QuizRun,
-    quizRecords: QuizRecord[]
-  ): Promise<{ quizRun: QuizRun; quizRecords: QuizRecord[] }>
+  save(quizRun: QuizRunEntity, quizRecords: QuizRecordEntity[]): Promise<QuizRunWithRecords>
   updateSyncedAt(ids: string[], syncedAt: Date): Promise<void>
 }

@@ -1,8 +1,7 @@
-import { askAI } from "../domain/learn/askAI.ts"
-import { ForbiddenError, NotFoundError } from "../errors/index.ts"
-import type { AIService } from "./AIService.ts"
-import type { ContextObjectQueryService } from "./queries/ContextObjectQueryService.ts"
+import type { AIService } from "../domain/ai/AIService.ts"
 import type { AILearnResponse } from "../domain/types.ts"
+import { ForbiddenError, NotFoundError } from "../errors/index.ts"
+import type { ContextObjectQueryService } from "./queries/ContextObjectQueryService.ts"
 
 export type LearnInput = {
   userId: string
@@ -27,5 +26,5 @@ export async function LearnUseCase(
     throw new NotFoundError(`Context object not found: ${input.contextObjectId}`)
   }
 
-  return askAI(contextObject, input.question, deps.aiRepo)
+  return deps.aiRepo.askAI(contextObject, input.question)
 }

@@ -1,7 +1,8 @@
-import type { ContextObject, Quiz } from "../types.ts"
+import type { ContextObjectEntity } from "./ContextObjectEntity.ts"
+import type { QuizEntity } from "./quiz/QuizEntity.ts"
 
 /** Aggregate root: ContextObject (includes Quiz[]) */
 export interface ContextObjectRepository {
-  bulkCreate(contextObjects: ContextObject[]): Promise<void>
-  bulkCreateQuizzes(quizzes: Quiz[]): Promise<void>
+  bulkCreate(contextObjects: ContextObjectEntity[]): Promise<void>
+  bulkCreateQuizzes(quizzes: QuizEntity[]): Promise<void>
 }

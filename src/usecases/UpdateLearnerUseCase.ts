@@ -1,6 +1,6 @@
+import type { UserEntity } from "../domain/user/UserEntity.ts"
 import type { UserRepository } from "../domain/user/UserRepository.ts"
 import type { UserQueryService } from "./queries/UserQueryService.ts"
-import type { User } from "../domain/types.ts"
 
 export type UpdateLearnerInput = {
   userName?: string
@@ -13,7 +13,7 @@ export async function UpdateLearnerUseCase(
   input: UpdateLearnerInput,
   userRepo: UserRepository,
   userQueryService: UserQueryService
-): Promise<User> {
+): Promise<UserEntity> {
   await userRepo.updateUser(userId, input)
   return userQueryService.getUser(userId)
 }

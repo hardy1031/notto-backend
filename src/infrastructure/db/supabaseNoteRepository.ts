@@ -1,11 +1,12 @@
-import { DBError } from "../../errors/index.ts"
+import { NoteEntity } from "../../domain/note/NoteEntity.ts"
+import type { NotePieceEntity } from "../../domain/note/NotePieceEntity.ts"
 import type { NoteRepository } from "../../domain/note/NoteRepository.ts"
+import { DBError } from "../../errors/index.ts"
 import type { NoteQueryService } from "../../usecases/queries/NoteQueryService.ts"
-import type { Note, NotePiece } from "../../domain/types.ts"
 import sql from "../postgresClient.ts"
 
-function toNote(row: Record<string, unknown>): Note {
-  return {
+function toNote(row: Record<string, unknown>): NoteEntity {
+  return NoteEntity.reconstruct({
     id: row.id as string,
     notebookId: row.notebook_id as string,
     name: row.name as string,
@@ -13,11 +14,11 @@ function toNote(row: Record<string, unknown>): Note {
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
     syncedAt: new Date(row.synced_at as string),
-  }
+  })
 }
 
 export class SupabaseNoteRepository implements NoteRepository, NoteQueryService {
-  async findByUserIdAndIds(userId: string, ids: string[]): Promise<Note[]> {
+  async findByUserIdAndIds(userId: string, ids: string[]): Promise<NoteEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT n.*
@@ -31,7 +32,7 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
     }
   }
 
-  async findByUserId(userId: string): Promise<Note[]> {
+  async findByUserId(userId: string): Promise<NoteEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT n.*
@@ -45,7 +46,7 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
     }
   }
 
-  async createWithNotePieces(note: Note, pieces: NotePiece[]): Promise<void> {
+  async createWithNotePieces(note: NoteEntity, pieces: NotePieceEntity[]): Promise<void> {
     try {
       await sql.begin(async (tx) => {
         await tx`
@@ -54,7 +55,11 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
                   ${note.createdAt.toISOString()}, ${note.updatedAt.toISOString()}, ${note.syncedAt.toISOString()})
         `
         if (pieces.length > 0) {
-          const values = pieces.map((p) => ({ id: p.id, note_id: p.noteId, created_at: p.createdAt.toISOString() }))
+          const values = pieces.map((p) => ({
+            id: p.id,
+            note_id: p.noteId,
+            created_at: p.createdAt.toISOString(),
+          }))
           await tx`
             INSERT INTO note_pieces ${tx(values, "id", "note_id", "created_at")}
             ON CONFLICT (id) DO UPDATE SET note_id = EXCLUDED.note_id, created_at = EXCLUDED.created_at
@@ -74,7 +79,7 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
     }
   }
 
-  async updateWithNotePieces(note: Note, pieces: NotePiece[]): Promise<void> {
+  async updateWithNotePieces(note: NoteEntity, pieces: NotePieceEntity[]): Promise<void> {
     try {
       await sql.begin(async (tx) => {
         await tx`
@@ -84,7 +89,11 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
         `
         await tx`DELETE FROM note_pieces WHERE note_id = ${note.id}`
         if (pieces.length > 0) {
-          const values = pieces.map((p) => ({ id: p.id, note_id: p.noteId, created_at: p.createdAt.toISOString() }))
+          const values = pieces.map((p) => ({
+            id: p.id,
+            note_id: p.noteId,
+            created_at: p.createdAt.toISOString(),
+          }))
           await tx`
             INSERT INTO note_pieces ${tx(values, "id", "note_id", "created_at")}
             ON CONFLICT (id) DO UPDATE SET note_id = EXCLUDED.note_id, created_at = EXCLUDED.created_at

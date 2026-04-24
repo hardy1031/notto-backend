@@ -1,22 +1,22 @@
-import { DBError } from "../../errors/index.ts"
+import { NotebookEntity } from "../../domain/notebook/NotebookEntity.ts"
 import type { NotebookRepository } from "../../domain/notebook/NotebookRepository.ts"
+import { DBError } from "../../errors/index.ts"
 import type { NotebookQueryService } from "../../usecases/queries/NotebookQueryService.ts"
-import type { Notebook } from "../../domain/types.ts"
 import sql from "../postgresClient.ts"
 
-function toNotebook(row: Record<string, unknown>): Notebook {
-  return {
+function toNotebook(row: Record<string, unknown>): NotebookEntity {
+  return NotebookEntity.reconstruct({
     id: row.id as string,
     userId: row.user_id as string,
     name: row.name as string,
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
     syncedAt: new Date(row.synced_at as string),
-  }
+  })
 }
 
 export class SupabaseNotebookRepository implements NotebookRepository, NotebookQueryService {
-  async findByUserIdAndIds(userId: string, ids: string[]): Promise<Notebook[]> {
+  async findByUserIdAndIds(userId: string, ids: string[]): Promise<NotebookEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM notebooks WHERE user_id = ${userId} AND id = ANY(${ids})
@@ -27,7 +27,7 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
     }
   }
 
-  async findByUserId(userId: string): Promise<Notebook[]> {
+  async findByUserId(userId: string): Promise<NotebookEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM notebooks WHERE user_id = ${userId}
@@ -38,7 +38,7 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
     }
   }
 
-  async create(notebook: Notebook): Promise<void> {
+  async create(notebook: NotebookEntity): Promise<void> {
     try {
       await sql`
         INSERT INTO notebooks (id, user_id, name, created_at, updated_at, synced_at)
@@ -58,7 +58,7 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
     }
   }
 
-  async update(notebook: Notebook): Promise<void> {
+  async update(notebook: NotebookEntity): Promise<void> {
     try {
       await sql`
         UPDATE notebooks

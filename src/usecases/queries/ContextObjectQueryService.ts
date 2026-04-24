@@ -1,8 +1,8 @@
-import type { ContextObject } from "../../domain/types.ts"
+import type { ContextObjectEntity } from "../../domain/contextObject/ContextObjectEntity.ts"
 
 export interface ContextObjectQueryService {
-  findByNoteIds(noteIds: string[]): Promise<ContextObject[]>
-  findByUserId(userId: string): Promise<ContextObject[]>
-  findWithoutQuizzes(noteIds: string[]): Promise<ContextObject[]>
-  findByUserAndId(userId: string, id: string): Promise<ContextObject | null>
+  findByNoteIds(noteIds: string[]): Promise<ContextObjectEntity[]>
+  findByUserId(userId: string): Promise<ContextObjectEntity[]>
+  findWithoutQuizzes(noteIds: string[]): Promise<ContextObjectEntity[]>
+  findByUserAndId(userId: string, id: string): Promise<ContextObjectEntity | null>
 }

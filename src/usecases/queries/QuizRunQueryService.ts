@@ -1,4 +1,4 @@
-import type { QuizRunWithRecords } from "../../domain/types.ts"
+import type { QuizRunWithRecords } from "../../domain/quizRun/QuizRunEntity.ts"
 
 export interface QuizRunQueryService {
   findByUserId(userId: string): Promise<QuizRunWithRecords[]>

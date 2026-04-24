@@ -1,8 +1,12 @@
+import {
+  QuizRecordEntity,
+  QuizRunEntity,
+  type QuizRunWithRecords,
+} from "../domain/quizRun/QuizRunEntity.ts"
+import type { QuizRunRepository } from "../domain/quizRun/QuizRunRepository.ts"
 import { NotFoundError } from "../errors/index.ts"
 import type { QuizQueryService } from "./queries/QuizQueryService.ts"
-import type { QuizRunRepository } from "../domain/quizRun/QuizRunRepository.ts"
 import type { QuizRunQueryService } from "./queries/QuizRunQueryService.ts"
-import type { QuizRecord, QuizRun } from "../domain/types.ts"
 
 export type SyncQuizRunRecordInput = {
   id: string
@@ -21,10 +25,7 @@ export type SyncQuizRunInput = {
 }
 
 export type SyncQuizRunsOutput = {
-  quizRuns: {
-    quizRun: QuizRun
-    quizRecords: QuizRecord[]
-  }[]
+  quizRuns: QuizRunWithRecords[]
 }
 
 export async function SyncQuizRunsUseCase(
@@ -43,7 +44,10 @@ export async function SyncQuizRunsUseCase(
 
   // insert quiz runs the server does not have yet
   if (quizRuns.length > 0) {
-    const existingQuizRuns = await deps.quizRunQueryService.findByUserIdAndIds(userId, clientQuizRunIds)
+    const existingQuizRuns = await deps.quizRunQueryService.findByUserIdAndIds(
+      userId,
+      clientQuizRunIds
+    )
     const existingIds = new Set(existingQuizRuns.map((qr) => qr.quizRun.id))
 
     for (const quizRun of quizRuns) {
@@ -55,22 +59,24 @@ export async function SyncQuizRunsUseCase(
         if (!quiz) throw new NotFoundError(`Quiz not found: ${record.quizId}`)
       }
 
-      const quizRunEntity: QuizRun = {
+      const quizRunEntity = QuizRunEntity.create({
         id: quizRun.id,
         userId,
         startedAt: quizRun.startedAt,
         completedAt: quizRun.completedAt,
         syncedAt: new Date(),
-      }
-      const quizRecords: QuizRecord[] = quizRun.records.map((record) => ({
-        id: record.id,
-        quizRunId: quizRun.id,
-        quizId: record.quizId,
-        choices: record.choices,
-        userAnswer: record.userAnswer,
-        isCorrect: record.isCorrect,
-        createdAt: record.createdAt,
-      }))
+      })
+      const quizRecords = quizRun.records.map((record) =>
+        QuizRecordEntity.create({
+          id: record.id,
+          quizRunId: quizRun.id,
+          quizId: record.quizId,
+          choices: record.choices,
+          userAnswer: record.userAnswer,
+          isCorrect: record.isCorrect,
+          createdAt: record.createdAt,
+        })
+      )
       await deps.quizRunRepo.save(quizRunEntity, quizRecords)
     }
   }

@@ -1,9 +1,9 @@
+import type { UserEntity } from "../domain/user/UserEntity.ts"
 import type { UserQueryService } from "./queries/UserQueryService.ts"
-import type { User } from "../domain/types.ts"
 
 export async function GetLearnerUseCase(
   userId: string,
   userQueryService: UserQueryService
-): Promise<User> {
+): Promise<UserEntity> {
   return userQueryService.getUser(userId)
 }

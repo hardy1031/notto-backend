@@ -1,6 +1,6 @@
+import type { UserEntity } from "../domain/user/UserEntity.ts"
 import type { AuthService } from "./AuthService.ts"
 import type { UserQueryService } from "./queries/UserQueryService.ts"
-import type { User } from "../domain/types.ts"
 
 export type LoginInput = {
   email: string
@@ -9,7 +9,7 @@ export type LoginInput = {
 
 export type LoginOutput = {
   token: string
-  user: User
+  user: UserEntity
 }
 
 export async function LoginUseCase(

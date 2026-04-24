@@ -1,6 +1,6 @@
-import type { Notebook } from "../../domain/types.ts"
+import type { NotebookEntity } from "../../domain/notebook/NotebookEntity.ts"
 
 export interface NotebookQueryService {
-  findByUserId(userId: string): Promise<Notebook[]>
-  findByUserIdAndIds(userId: string, ids: string[]): Promise<Notebook[]>
+  findByUserId(userId: string): Promise<NotebookEntity[]>
+  findByUserIdAndIds(userId: string, ids: string[]): Promise<NotebookEntity[]>
 }

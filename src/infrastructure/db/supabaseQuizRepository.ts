@@ -1,23 +1,23 @@
+import { QuizEntity } from "../../domain/contextObject/quiz/QuizEntity.ts"
 import { DBError } from "../../errors/index.ts"
 import type { QuizQueryService } from "../../usecases/queries/QuizQueryService.ts"
-import type { Quiz } from "../../domain/types.ts"
 import sql from "../postgresClient.ts"
 
-function toQuiz(row: Record<string, unknown>): Quiz {
-  return {
+function toQuiz(row: Record<string, unknown>): QuizEntity {
+  return QuizEntity.reconstruct({
     id: row.id as string,
     contextObjectId: row.context_object_id as string,
-    type: row.type as Quiz["type"],
+    type: row.type as QuizEntity["type"],
     questionSentence: row.question_sentence as string,
     answer: row.answer as string,
     choicePool: row.choice_pool as string[],
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
-  }
+  })
 }
 
 export class SupabaseQuizRepository implements QuizQueryService {
-  async findByContextObjectIds(contextObjectIds: string[]): Promise<Quiz[]> {
+  async findByContextObjectIds(contextObjectIds: string[]): Promise<QuizEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM quizzes WHERE context_object_id = ANY(${contextObjectIds})
@@ -28,7 +28,7 @@ export class SupabaseQuizRepository implements QuizQueryService {
     }
   }
 
-  async findByUserId(userId: string): Promise<Quiz[]> {
+  async findByUserId(userId: string): Promise<QuizEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT q.*
@@ -45,7 +45,7 @@ export class SupabaseQuizRepository implements QuizQueryService {
     }
   }
 
-  async findByIdAndUserId(id: string, userId: string): Promise<Quiz | null> {
+  async findByIdAndUserId(id: string, userId: string): Promise<QuizEntity | null> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT q.*

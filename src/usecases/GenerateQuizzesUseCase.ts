@@ -1,15 +1,15 @@
-import { findUninterpretedPieces } from "../domain/note/note_piece/findUninterpretedPieces.ts"
-import { generateContextObjects } from "../domain/contextObject/generateContextObject.ts"
-import { generateQuizzes } from "../domain/contextObject/quiz/generateQuizzes.ts"
-import type { AIService } from "./AIService.ts"
+import type { AIService } from "../domain/ai/AIService.ts"
+import { ContextObjectEntity } from "../domain/contextObject/ContextObjectEntity.ts"
 import type { ContextObjectRepository } from "../domain/contextObject/ContextObjectRepository.ts"
+import { QuizEntity } from "../domain/contextObject/quiz/QuizEntity.ts"
+import { NotePieceEntity } from "../domain/note/NotePieceEntity.ts"
+import type { NotePieceContent } from "../domain/types.ts"
+import { parsedNoteSchema } from "../schemas/sync.ts"
+import type { NoteStorageService } from "./NoteStorageService.ts"
 import type { ContextObjectQueryService } from "./queries/ContextObjectQueryService.ts"
 import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
 import type { NoteQueryService } from "./queries/NoteQueryService.ts"
-import type { NoteStorageService } from "./NoteStorageService.ts"
 import type { QuizQueryService } from "./queries/QuizQueryService.ts"
-import { parsedNoteSchema } from "../schemas/sync.ts"
-import type { ContextObject, NotePieceContent, Quiz } from "../domain/types.ts"
 
 export type GenerateQuizzesInput = {
   userId: string
@@ -18,8 +18,8 @@ export type GenerateQuizzesInput = {
 }
 
 export type GenerateQuizzesOutput = {
-  contextObjects: ContextObject[]
-  quizzes: Quiz[]
+  contextObjects: ContextObjectEntity[]
+  quizzes: QuizEntity[]
 }
 
 export async function GenerateQuizzesUseCase(
@@ -45,7 +45,7 @@ export async function GenerateQuizzesUseCase(
   // find note pieces that have not been interpreted into context objects yet
   const notePieces = await deps.notePieceRepo.findByNoteIds(allNoteIds)
   const existingContextObjects = await deps.contextObjectQueryService.findByUserId(userId)
-  const uninterpretedPieces = findUninterpretedPieces(notePieces, existingContextObjects)
+  const uninterpretedPieces = NotePieceEntity.findUninterpreted(notePieces, existingContextObjects)
 
   // build a map of parsed notes fetched from storage (lazy, cached per note)
   const parsedNoteCache = new Map<string, NotePieceContent[]>()
@@ -60,55 +60,54 @@ export async function GenerateQuizzesUseCase(
   }
 
   // collect pieces with their content, then generate all context objects in one AI call
-  const piecesWithContent: { piece: (typeof uninterpretedPieces)[number]; expression: string; annotation: string }[] = []
+  const piecesWithContent: {
+    piece: (typeof uninterpretedPieces)[number]
+    expression: string
+    annotation: string
+  }[] = []
   for (const piece of uninterpretedPieces) {
     const parsedNote = await getNotePieceContents(piece.noteId)
     const pieceContent = parsedNote.find((p) => p.notePieceId === piece.id)
     if (!pieceContent) continue
-    piecesWithContent.push({ piece, expression: pieceContent.expression, annotation: pieceContent.annotation })
+    piecesWithContent.push({
+      piece,
+      expression: pieceContent.expression,
+      annotation: pieceContent.annotation,
+    })
   }
 
-  const generatedContextObjects = piecesWithContent.length > 0
-    ? await generateContextObjects(piecesWithContent.map((p) => ({ expression: p.expression, annotation: p.annotation })), deps.aiRepo)
-    : []
+  const generatedContextObjects =
+    piecesWithContent.length > 0
+      ? await deps.aiRepo.generateContextObjects(
+          piecesWithContent.map((p) => ({ expression: p.expression, annotation: p.annotation }))
+        )
+      : []
 
   const now = new Date()
-  const newContextObjects: ContextObject[] = piecesWithContent.map((p, i) => ({
-    id: crypto.randomUUID(),
-    notePieceId: p.piece.id,
-    noteId: p.piece.noteId,
-    expression: generatedContextObjects[i]!.expression,
-    baseMeaning: generatedContextObjects[i]!.baseMeaning,
-    actualNuance: generatedContextObjects[i]!.actualNuance,
-    tone: generatedContextObjects[i]!.tone,
-    formality: generatedContextObjects[i]!.formality,
-    isSlang: generatedContextObjects[i]!.isSlang,
-    exampleDialogue: generatedContextObjects[i]!.exampleDialogue,
-    createdAt: now,
-    updatedAt: now,
-  }))
+  const newContextObjects: ContextObjectEntity[] = piecesWithContent.map((p, i) =>
+    ContextObjectEntity.fromGenerated(
+      generatedContextObjects[i]!,
+      p.piece.id,
+      p.piece.noteId,
+      crypto.randomUUID(),
+      now
+    )
+  )
 
   if (newContextObjects.length > 0) {
     await deps.contextObjectRepo.bulkCreate(newContextObjects)
   }
 
   // generate quizzes for context objects that don't have quizzes yet
-  const contextObjectsWithoutQuizzes = await deps.contextObjectQueryService.findWithoutQuizzes(allNoteIds)
-  const generatedQuizItems = await generateQuizzes(contextObjectsWithoutQuizzes, deps.aiRepo)
+  const contextObjectsWithoutQuizzes =
+    await deps.contextObjectQueryService.findWithoutQuizzes(allNoteIds)
+  const generatedQuizItems = await deps.aiRepo.generateQuizzes(contextObjectsWithoutQuizzes)
 
-  const newQuizzes: Quiz[] = generatedQuizItems.map((generatedQuizItem) => {
+  const newQuizzes: QuizEntity[] = generatedQuizItems.map((generatedQuizItem) => {
     const contextObject = contextObjectsWithoutQuizzes[generatedQuizItem.contextObjectIndex]
-    if (!contextObject) throw new Error(`Invalid context_object_index: ${generatedQuizItem.contextObjectIndex}`)
-    return {
-      id: crypto.randomUUID(),
-      contextObjectId: contextObject.id,
-      type: generatedQuizItem.type,
-      questionSentence: generatedQuizItem.questionSentence,
-      answer: generatedQuizItem.answer,
-      choicePool: generatedQuizItem.choicePool,
-      createdAt: now,
-      updatedAt: now,
-    }
+    if (!contextObject)
+      throw new Error(`Invalid context_object_index: ${generatedQuizItem.contextObjectIndex}`)
+    return QuizEntity.fromGenerated(generatedQuizItem, contextObject, crypto.randomUUID(), now)
   })
 
   if (newQuizzes.length > 0) {

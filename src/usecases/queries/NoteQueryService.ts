@@ -1,6 +1,6 @@
-import type { Note } from "../../domain/types.ts"
+import type { NoteEntity } from "../../domain/note/NoteEntity.ts"
 
 export interface NoteQueryService {
-  findByUserId(userId: string): Promise<Note[]>
-  findByUserIdAndIds(userId: string, ids: string[]): Promise<Note[]>
+  findByUserId(userId: string): Promise<NoteEntity[]>
+  findByUserIdAndIds(userId: string, ids: string[]): Promise<NoteEntity[]>
 }

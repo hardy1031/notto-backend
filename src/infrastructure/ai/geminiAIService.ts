@@ -1,84 +1,7 @@
+import type { AIService } from "../../domain/ai/AIService.ts"
+import type { ContextObjectEntity } from "../../domain/contextObject/ContextObjectEntity.ts"
+import type { AILearnResponse, GeneratedContextObject, GeneratedQuiz } from "../../domain/types.ts"
 import { AIUnavailableError } from "../../errors/index.ts"
-import type { AIService } from "../../usecases/AIService.ts"
-import type {
-  AILearnResponse,
-  ContextObject,
-  GeneratedContextObject,
-  GeneratedQuiz,
-} from "../../domain/types.ts"
-
-export class MockAIService implements AIService {
-  async generateContextObjects(pieces: { expression: string; annotation: string }[]): Promise<GeneratedContextObject[]> {
-    return pieces.map(({ expression, annotation }) => ({
-      expression,
-      baseMeaning: annotation,
-      actualNuance: `Mock nuance for: ${annotation}`,
-      tone: "neutral",
-      formality: "casual",
-      isSlang: false,
-      exampleDialogue: [
-        { speaker: "A", text: `${expression}を使う場面の例文A` },
-        { speaker: "B", text: `${expression}を使う場面の例文B` },
-      ],
-    }))
-  }
-
-  async generateQuizzes(contextObjects: ContextObject[]): Promise<GeneratedQuiz[]> {
-    const quizzes: GeneratedQuiz[] = []
-    for (let i = 0; i < contextObjects.length; i++) {
-      const co = contextObjects[i]
-      if (!co) continue
-      quizzes.push({
-        contextObjectIndex: i,
-        type: "choose_context",
-        questionSentence: `Which situation best fits the expression "${co.expression}"?`,
-        answer: co.actualNuance,
-        choicePool: [
-          co.actualNuance,
-          "Used in formal business settings only",
-          "A polite way to greet someone for the first time",
-          "An expression of surprise or shock",
-          "Used to show disagreement or refusal",
-          "A casual way to say goodbye",
-          "An expression of gratitude",
-          "Used to ask for permission",
-          "A way to express uncertainty",
-          "Used only in written communication",
-        ],
-      })
-      quizzes.push({
-        contextObjectIndex: i,
-        type: "fill_metadata",
-        questionSentence: `What is the base meaning of "${co.expression}"?`,
-        answer: co.baseMeaning,
-        choicePool: [
-          co.baseMeaning,
-          "To express strong disagreement",
-          "A formal greeting phrase",
-          "An expression of gratitude",
-          "To indicate completion of a task",
-          "A way to show surprise",
-          "To make a polite request",
-          "An informal farewell",
-          "To express confusion",
-          "A term used in professional contexts",
-        ],
-      })
-    }
-    return quizzes
-  }
-
-  async askAI(contextObject: ContextObject, question: string): Promise<AILearnResponse> {
-    return {
-      explanation: `This is a mock explanation for "${contextObject.expression}" in response to: ${question}`,
-      examples: [
-        `Example usage of ${contextObject.expression} in context 1.`,
-        `Example usage of ${contextObject.expression} in context 2.`,
-      ],
-      relatedExpressions: ["関連表現1", "関連表現2"],
-    }
-  }
-}
 
 export class GeminiAIService implements AIService {
   private client: import("@anthropic-ai/sdk").Anthropic
@@ -111,7 +34,9 @@ export class GeminiAIService implements AIService {
     }
   }
 
-  async generateContextObjects(pieces: { expression: string; annotation: string }[]): Promise<GeneratedContextObject[]> {
+  async generateContextObjects(
+    pieces: { expression: string; annotation: string }[]
+  ): Promise<GeneratedContextObject[]> {
     const promptText = await Bun.file("src/prompts/generateContextObjects.txt").text()
 
     const result = await this.callWithRetry(async () => {
@@ -135,7 +60,7 @@ export class GeminiAIService implements AIService {
     return result
   }
 
-  async generateQuizzes(contextObjects: ContextObject[]): Promise<GeneratedQuiz[]> {
+  async generateQuizzes(contextObjects: ContextObjectEntity[]): Promise<GeneratedQuiz[]> {
     const promptText = await Bun.file("src/prompts/generateQuizzes.txt").text()
 
     const result = await this.callWithRetry(async () => {
@@ -159,7 +84,7 @@ export class GeminiAIService implements AIService {
     return result
   }
 
-  async askAI(contextObject: ContextObject, question: string): Promise<AILearnResponse> {
+  async askAI(contextObject: ContextObjectEntity, question: string): Promise<AILearnResponse> {
     const promptText = await Bun.file("src/prompts/askAI.txt").text()
 
     const result = await this.callWithRetry(async () => {
