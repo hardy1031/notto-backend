@@ -3,6 +3,16 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deploy target environment"
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
 
 jobs:
   deploy:
@@ -13,6 +23,15 @@ jobs:
       contents: read
 
     steps:
+      - name: Resolve environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "target=dev" >> $GITHUB_OUTPUT
+          else
+            echo "target=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
@@ -43,10 +62,12 @@ jobs:
 
       - name: Deploy to Lambda
         run: |
+          FUNCTION_NAME="notto-backend-${{ steps.env.outputs.target }}"
+
           aws lambda update-function-code \
-            --function-name notto-backend-prod \
+            --function-name "$FUNCTION_NAME" \
             --zip-file fileb://dist/function.zip \
             --no-cli-pager
 
           aws lambda wait function-updated \
-            --function-name notto-backend-prod
+            --function-name "$FUNCTION_NAME"
