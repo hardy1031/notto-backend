@@ -1,13 +1,20 @@
-import { handle } from "hono/aws-lambda"
 import { Hono } from "hono"
+import { handle } from "hono/aws-lambda"
 import { bodyLimit } from "hono/body-limit"
 import { cors } from "hono/cors"
-import { AIUnavailableError, ConflictError, DBError, ForbiddenError, NotFoundError, S3Error } from "./errors/index.ts"
+import {
+  AIUnavailableError,
+  ConflictError,
+  DBError,
+  ForbiddenError,
+  NotFoundError,
+  S3Error,
+} from "./errors/index.ts"
 import { authRouter } from "./routes/auth.ts"
 import { learnRouter } from "./routes/learn.ts"
+import { syncNotebooksRouter } from "./routes/syncNotebooks.ts"
 import { syncQuizRunsRouter } from "./routes/syncQuizRuns.ts"
 import { syncQuizzesRouter } from "./routes/syncQuizzes.ts"
-import { syncNotebooksRouter } from "./routes/syncNotebooks.ts"
 import { usersRouter } from "./routes/users.ts"
 
 const app = new Hono()
@@ -59,7 +66,7 @@ app.onError((err, c) => {
 export const handler = handle(app)
 
 // Bun dev server — used for local development only
-if (process.env.NODE_ENV !== "production") {
+if (typeof Bun !== "undefined") {
   const port = Number(process.env.PORT ?? 3000)
   Bun.serve({ port, fetch: app.fetch })
   console.log(`Server running at http://localhost:${port}`)

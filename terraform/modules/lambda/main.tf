@@ -129,3 +129,13 @@ resource "aws_lambda_function_url" "this" {
   function_name      = aws_lambda_function.this.function_name
   authorization_type = "NONE"
 }
+
+# Function URL 経由の invoke を許可する resource-based policy
+#   lambda:InvokeFunction + InvokedViaFunctionUrl 条件
+resource "aws_lambda_permission" "function_url_invoke" {
+  statement_id           = "FunctionURLInvokeAllowPublicAccess"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.this.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
