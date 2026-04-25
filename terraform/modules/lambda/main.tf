@@ -1,3 +1,11 @@
+# =============================================================================
+# Execution Role: aws_iam_role.this
+#   Attached policies:
+#   - AWSLambdaBasicExecutionRole (managed) : CloudWatch Logs への書き込み
+#   - aws_iam_role_policy.s3_access         : S3 バケットの読み書き・削除・一覧
+#   - aws_iam_role_policy.ssm_access        : SSM Parameter Store からの env var 取得
+# =============================================================================
+
 data "aws_iam_policy_document" "assume_role" {
   statement {
     effect  = "Allow"
@@ -15,27 +23,13 @@ resource "aws_iam_role" "this" {
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
+# CloudWatch Logs への書き込み (AWS managed policy)
 resource "aws_iam_role_policy_attachment" "basic_execution" {
   role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-data "aws_ssm_parameter" "supabase_url" {
-  name = "/notto/${var.environment}/supabase_url"
-}
-
-data "aws_ssm_parameter" "supabase_anon_key" {
-  name = "/notto/${var.environment}/supabase_anon_key"
-}
-
-data "aws_ssm_parameter" "supabase_service_role_key" {
-  name = "/notto/${var.environment}/supabase_service_role_key"
-}
-
-data "aws_ssm_parameter" "gemini_api_key" {
-  name = "/notto/${var.environment}/gemini_api_key"
-}
-
+# S3 バケットの読み書き・削除・一覧
 data "aws_iam_policy_document" "s3_access" {
   statement {
     effect = "Allow"
@@ -58,6 +52,7 @@ resource "aws_iam_role_policy" "s3_access" {
   policy = data.aws_iam_policy_document.s3_access.json
 }
 
+# SSM Parameter Store からの env var 取得 (/notto/{env}/*)
 data "aws_iam_policy_document" "ssm_access" {
   statement {
     effect = "Allow"
@@ -74,6 +69,30 @@ resource "aws_iam_role_policy" "ssm_access" {
   role   = aws_iam_role.this.id
   policy = data.aws_iam_policy_document.ssm_access.json
 }
+
+# =============================================================================
+# SSM パラメータ (env var として Lambda に渡す値)
+# =============================================================================
+
+data "aws_ssm_parameter" "supabase_url" {
+  name = "/notto/${var.environment}/supabase_url"
+}
+
+data "aws_ssm_parameter" "supabase_anon_key" {
+  name = "/notto/${var.environment}/supabase_anon_key"
+}
+
+data "aws_ssm_parameter" "supabase_service_role_key" {
+  name = "/notto/${var.environment}/supabase_service_role_key"
+}
+
+data "aws_ssm_parameter" "gemini_api_key" {
+  name = "/notto/${var.environment}/gemini_api_key"
+}
+
+# =============================================================================
+# Lambda Function
+# =============================================================================
 
 resource "aws_lambda_function" "this" {
   function_name = "${var.function_name}-${var.environment}"
@@ -103,6 +122,9 @@ resource "aws_lambda_function" "this" {
   }
 }
 
+# Function URL + Resource-based policy
+#   authorization_type = "NONE" : 認証不要、誰でも呼び出し可能
+#   Terraform が自動で FunctionURLAllowPublicAccess policy を付与する
 resource "aws_lambda_function_url" "this" {
   function_name      = aws_lambda_function.this.function_name
   authorization_type = "NONE"
