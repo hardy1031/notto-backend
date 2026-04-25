@@ -90,6 +90,10 @@ data "aws_ssm_parameter" "gemini_api_key" {
   name = "/notto/${var.environment}/gemini_api_key"
 }
 
+data "aws_ssm_parameter" "database_url" {
+  name = "/notto/${var.environment}/database_url"
+}
+
 # =============================================================================
 # Lambda Function
 # =============================================================================
@@ -113,6 +117,7 @@ resource "aws_lambda_function" "this" {
       SUPABASE_ANON_KEY         = data.aws_ssm_parameter.supabase_anon_key.value
       SUPABASE_SERVICE_ROLE_KEY = data.aws_ssm_parameter.supabase_service_role_key.value
       GEMINI_API_KEY            = data.aws_ssm_parameter.gemini_api_key.value
+      DATABASE_URL              = data.aws_ssm_parameter.database_url.value
     })
   }
 
@@ -130,12 +135,20 @@ resource "aws_lambda_function_url" "this" {
   authorization_type = "NONE"
 }
 
-# Function URL 経由の invoke を許可する resource-based policy
-#   lambda:InvokeFunction + InvokedViaFunctionUrl 条件
+# Function URL 経由のアクセスに必要な resource-based policy (2つ必要)
+#   1. lambda:InvokeFunctionUrl : Function URL 経由のアクセス許可
 resource "aws_lambda_permission" "function_url_invoke" {
   statement_id           = "FunctionURLInvokeAllowPublicAccess"
   action                 = "lambda:InvokeFunctionUrl"
   function_name          = aws_lambda_function.this.function_name
   principal              = "*"
   function_url_auth_type = "NONE"
+}
+
+#   2. lambda:InvokeFunction : Lambda の実行許可
+resource "aws_lambda_permission" "invoke" {
+  statement_id  = "FunctionURLAllowInvokeFunction"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.this.function_name
+  principal     = "*"
 }
