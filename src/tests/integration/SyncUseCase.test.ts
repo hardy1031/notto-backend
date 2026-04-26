@@ -7,9 +7,9 @@ const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SE
 import { SupabaseNotePieceRepository } from "../../infrastructure/db/supabaseNotePieceRepository.ts"
 import { SupabaseNoteRepository } from "../../infrastructure/db/supabaseNoteRepository.ts"
 import { SupabaseNotebookRepository } from "../../infrastructure/db/supabaseNotebookRepository.ts"
-import { MockNoteStorageService } from "../mocks/mockNoteStorageService.ts"
 import { SyncNotebooksUseCase } from "../../usecases/SyncNotebooksUseCase.ts"
 import { SyncNotesUseCase } from "../../usecases/SyncNotesUseCase.ts"
+import { MockNoteStorageService } from "../mocks/mockNoteStorageService.ts"
 
 const TEST_USER_ID = "11111111-1111-1111-1111-111111111111"
 const TEST_EMAIL = "sync-test@example.com"
@@ -21,7 +21,13 @@ const notePieceRepo = new SupabaseNotePieceRepository()
 const noteStorage = new MockNoteStorageService()
 
 const notebookDeps = { notebookRepo, notebookQueryService: notebookRepo }
-const noteDeps = { notebookQueryService: notebookRepo, noteRepo, noteQueryService: noteRepo, notePieceQueryService: notePieceRepo, noteStorage }
+const noteDeps = {
+  notebookQueryService: notebookRepo,
+  noteRepo,
+  noteQueryService: noteRepo,
+  notePieceQueryService: notePieceRepo,
+  noteStorage,
+}
 
 async function cleanupUser() {
   await supabase.auth.admin.deleteUser(TEST_USER_ID)
@@ -55,7 +61,18 @@ describe("SyncNotebooksUseCase", () => {
     const notebookId = "aaaaaaaa-0000-0000-0000-000000000001"
 
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "スラング", createdAt: new Date(), updatedAt: new Date() }] },
+      {
+        userId: TEST_USER_ID,
+        clientNotebooks: [
+          {
+            id: notebookId,
+            name: "スラング",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      },
       notebookDeps
     )
 
@@ -71,11 +88,33 @@ describe("SyncNotebooksUseCase", () => {
     const newerUpdatedAt = new Date("2026-01-02T00:00:00Z")
 
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "original", createdAt, updatedAt: originalUpdatedAt }] },
+      {
+        userId: TEST_USER_ID,
+        clientNotebooks: [
+          {
+            id: notebookId,
+            name: "original",
+            createdAt,
+            updatedAt: originalUpdatedAt,
+            deletedAt: null,
+          },
+        ],
+      },
       notebookDeps
     )
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "updated", createdAt, updatedAt: newerUpdatedAt }] },
+      {
+        userId: TEST_USER_ID,
+        clientNotebooks: [
+          {
+            id: notebookId,
+            name: "updated",
+            createdAt,
+            updatedAt: newerUpdatedAt,
+            deletedAt: null,
+          },
+        ],
+      },
       notebookDeps
     )
 
@@ -88,11 +127,27 @@ describe("SyncNotebooksUseCase", () => {
     const updatedAt = new Date("2026-01-01T00:00:00Z")
 
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "original", createdAt: updatedAt, updatedAt }] },
+      {
+        userId: TEST_USER_ID,
+        clientNotebooks: [
+          { id: notebookId, name: "original", createdAt: updatedAt, updatedAt, deletedAt: null },
+        ],
+      },
       notebookDeps
     )
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "should not update", createdAt: updatedAt, updatedAt }] },
+      {
+        userId: TEST_USER_ID,
+        clientNotebooks: [
+          {
+            id: notebookId,
+            name: "should not update",
+            createdAt: updatedAt,
+            updatedAt,
+            deletedAt: null,
+          },
+        ],
+      },
       notebookDeps
     )
 
@@ -106,7 +161,18 @@ describe("SyncNotesUseCase", () => {
 
   beforeEach(async () => {
     await SyncNotebooksUseCase(
-      { userId: TEST_USER_ID, clientNotebooks: [{ id: notebookId, name: "test", createdAt: new Date(), updatedAt: new Date() }] },
+      {
+        userId: TEST_USER_ID,
+        clientNotebooks: [
+          {
+            id: notebookId,
+            name: "test",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      },
       notebookDeps
     )
   })
@@ -117,14 +183,28 @@ describe("SyncNotesUseCase", () => {
     const result = await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        clientNotes: [{
-          id: noteId,
-          notebookId,
-          name: "スラング",
-          content: [{ notePieceId: crypto.randomUUID(), expression: "겠냐?", annotation: "rough dismissive question" }, { notePieceId: crypto.randomUUID(), expression: "나중에", annotation: "see you later" }],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }],
+        clientNotes: [
+          {
+            id: noteId,
+            notebookId,
+            name: "スラング",
+            content: [
+              {
+                notePieceId: crypto.randomUUID(),
+                expression: "겠냐?",
+                annotation: "rough dismissive question",
+              },
+              {
+                notePieceId: crypto.randomUUID(),
+                expression: "나중에",
+                annotation: "see you later",
+              },
+            ],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
       },
       noteDeps
     )
@@ -142,14 +222,23 @@ describe("SyncNotesUseCase", () => {
     await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        clientNotes: [{
-          id: noteId,
-          notebookId,
-          name: "スラング",
-          content: [{ notePieceId: crypto.randomUUID(), expression: "겠냐?", annotation: "rough dismissive question" }],
-          createdAt: originalUpdatedAt,
-          updatedAt: originalUpdatedAt,
-        }],
+        clientNotes: [
+          {
+            id: noteId,
+            notebookId,
+            name: "スラング",
+            content: [
+              {
+                notePieceId: crypto.randomUUID(),
+                expression: "겠냐?",
+                annotation: "rough dismissive question",
+              },
+            ],
+            createdAt: originalUpdatedAt,
+            updatedAt: originalUpdatedAt,
+            deletedAt: null,
+          },
+        ],
       },
       noteDeps
     )
@@ -160,14 +249,28 @@ describe("SyncNotesUseCase", () => {
     await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        clientNotes: [{
-          id: noteId,
-          notebookId,
-          name: "スラング updated",
-          content: [{ notePieceId: crypto.randomUUID(), expression: "나중에", annotation: "see you later" }, { notePieceId: crypto.randomUUID(), expression: "화이팅", annotation: "do your best" }],
-          createdAt: originalUpdatedAt,
-          updatedAt: newerUpdatedAt,
-        }],
+        clientNotes: [
+          {
+            id: noteId,
+            notebookId,
+            name: "スラング updated",
+            content: [
+              {
+                notePieceId: crypto.randomUUID(),
+                expression: "나중에",
+                annotation: "see you later",
+              },
+              {
+                notePieceId: crypto.randomUUID(),
+                expression: "화이팅",
+                annotation: "do your best",
+              },
+            ],
+            createdAt: originalUpdatedAt,
+            updatedAt: newerUpdatedAt,
+            deletedAt: null,
+          },
+        ],
       },
       noteDeps
     )
@@ -184,14 +287,23 @@ describe("SyncNotesUseCase", () => {
     await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        clientNotes: [{
-          id: noteId,
-          notebookId,
-          name: "スラング",
-          content: [{ notePieceId: crypto.randomUUID(), expression: "겠냐?", annotation: "rough dismissive question" }],
-          createdAt: updatedAt,
-          updatedAt,
-        }],
+        clientNotes: [
+          {
+            id: noteId,
+            notebookId,
+            name: "スラング",
+            content: [
+              {
+                notePieceId: crypto.randomUUID(),
+                expression: "겠냐?",
+                annotation: "rough dismissive question",
+              },
+            ],
+            createdAt: updatedAt,
+            updatedAt,
+            deletedAt: null,
+          },
+        ],
       },
       noteDeps
     )
@@ -199,14 +311,23 @@ describe("SyncNotesUseCase", () => {
     const result = await SyncNotesUseCase(
       {
         userId: TEST_USER_ID,
-        clientNotes: [{
-          id: noteId,
-          notebookId,
-          name: "スラング",
-          content: [{ notePieceId: crypto.randomUUID(), expression: "should not update", annotation: "this content" }],
-          createdAt: updatedAt,
-          updatedAt,
-        }],
+        clientNotes: [
+          {
+            id: noteId,
+            notebookId,
+            name: "スラング",
+            content: [
+              {
+                notePieceId: crypto.randomUUID(),
+                expression: "should not update",
+                annotation: "this content",
+              },
+            ],
+            createdAt: updatedAt,
+            updatedAt,
+            deletedAt: null,
+          },
+        ],
       },
       noteDeps
     )
@@ -221,14 +342,19 @@ describe("SyncNotesUseCase", () => {
       SyncNotesUseCase(
         {
           userId: TEST_USER_ID,
-          clientNotes: [{
-            id: "bbbbbbbb-0000-0000-0000-000000000099",
-            notebookId: unknownNotebookId,
-            name: "test",
-            content: [{ notePieceId: crypto.randomUUID(), expression: "test", annotation: "test" }],
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          }],
+          clientNotes: [
+            {
+              id: "bbbbbbbb-0000-0000-0000-000000000099",
+              notebookId: unknownNotebookId,
+              name: "test",
+              content: [
+                { notePieceId: crypto.randomUUID(), expression: "test", annotation: "test" },
+              ],
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              deletedAt: null,
+            },
+          ],
         },
         noteDeps
       )

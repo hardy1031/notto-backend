@@ -14,62 +14,67 @@ export const syncNotebooksRouter = new Hono<{ Variables: AppVariables }>()
 
 syncNotebooksRouter.use("*", authMiddleware)
 
-syncNotebooksRouter.post(
-  "/",
-  validate("json", syncNotebooksSchema),
-  async (c) => {
-    const userId = c.get("userId")
-    const body = c.req.valid("json")
+syncNotebooksRouter.post("/", validate("json", syncNotebooksSchema), async (c) => {
+  const userId = c.get("userId")
+  const body = c.req.valid("json")
 
-    const notebookRepo = new SupabaseNotebookRepository()
-    const noteRepo = new SupabaseNoteRepository()
-    const notePieceRepo = new SupabaseNotePieceRepository()
-    const noteStorage = new S3NoteStorageService()
+  const notebookRepo = new SupabaseNotebookRepository()
+  const noteRepo = new SupabaseNoteRepository()
+  const notePieceRepo = new SupabaseNotePieceRepository()
+  const noteStorage = new S3NoteStorageService()
 
-    // sync notebooks first, then notes (notes depend on notebooks existing on server)
-    const notebooksResult = await SyncNotebooksUseCase(
-      {
-        userId,
-        clientNotebooks: body.notebooks.map((notebook) => ({
-          id: notebook.id,
-          name: notebook.name,
-          createdAt: new Date(notebook.created_at),
-          updatedAt: new Date(notebook.updated_at),
-        })),
-      },
-      { notebookRepo, notebookQueryService: notebookRepo }
-    )
-
-    const notesResult = await SyncNotesUseCase(
-      {
-        userId,
-        clientNotes: body.notes.map((note) => ({
-          id: note.id,
-          notebookId: note.notebook_id,
-          name: note.name,
-          content: note.content,
-          createdAt: new Date(note.created_at),
-          updatedAt: new Date(note.updated_at),
-        })),
-      },
-      { notebookQueryService: notebookRepo, noteRepo, noteQueryService: noteRepo, notePieceQueryService: notePieceRepo, noteStorage }
-    )
-
-    return c.json({
-      notebooks: notebooksResult.clientNotebooks.map((notebook) => ({
+  const notebooksResult = await SyncNotebooksUseCase(
+    {
+      userId,
+      clientNotebooks: body.notebooks.map((notebook) => ({
         id: notebook.id,
         name: notebook.name,
-        created_at: notebook.createdAt.toISOString(),
-        updated_at: notebook.updatedAt.toISOString(),
+        createdAt: new Date(notebook.created_at),
+        updatedAt: new Date(notebook.updated_at),
+        deletedAt: notebook.deleted_at ? new Date(notebook.deleted_at) : null,
       })),
-      notes: notesResult.clientNotes.map(({ note, content }) => ({
+    },
+    { notebookRepo, notebookQueryService: notebookRepo }
+  )
+
+  const notesResult = await SyncNotesUseCase(
+    {
+      userId,
+      clientNotes: body.notes.map((note) => ({
         id: note.id,
-        notebook_id: note.notebookId,
+        notebookId: note.notebook_id,
         name: note.name,
-        created_at: note.createdAt.toISOString(),
-        updated_at: note.updatedAt.toISOString(),
-        content,
+        content: note.content,
+        createdAt: new Date(note.created_at),
+        updatedAt: new Date(note.updated_at),
+        deletedAt: note.deleted_at ? new Date(note.deleted_at) : null,
       })),
-    })
-  }
-)
+    },
+    {
+      notebookQueryService: notebookRepo,
+      noteRepo,
+      noteQueryService: noteRepo,
+      notePieceQueryService: notePieceRepo,
+      noteStorage,
+    }
+  )
+
+  return c.json({
+    notebooks: notebooksResult.clientNotebooks.map((notebook) => ({
+      id: notebook.id,
+      name: notebook.name,
+      created_at: notebook.createdAt.toISOString(),
+      updated_at: notebook.updatedAt.toISOString(),
+      deleted_at: notebook.deletedAt?.toISOString() ?? null,
+    })),
+    notes: notesResult.clientNotes.map(({ note, content }) => ({
+      id: note.id,
+      notebook_id: note.notebookId,
+      name: note.name,
+      created_at: note.createdAt.toISOString(),
+      updated_at: note.updatedAt.toISOString(),
+      deleted_at: note.deletedAt?.toISOString() ?? null,
+      content,
+    })),
+  })
+})

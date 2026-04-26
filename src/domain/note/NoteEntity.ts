@@ -6,6 +6,7 @@ type NoteProps = {
   createdAt: Date
   updatedAt: Date
   syncedAt: Date
+  deletedAt: Date | null
 }
 
 export class NoteEntity {
@@ -16,6 +17,7 @@ export class NoteEntity {
   readonly createdAt!: Date
   readonly updatedAt!: Date
   readonly syncedAt!: Date
+  readonly deletedAt!: Date | null
 
   private constructor(props: NoteProps) {
     Object.assign(this, props)
@@ -35,6 +37,10 @@ export class NoteEntity {
     return `${userId}/${notebookId}/${noteId}.json`
   }
 
+  get isDeleted(): boolean {
+    return this.deletedAt !== null
+  }
+
   /** Returns true if this note was updated more recently than the other (for LWW sync). */
   isNewerThan(other: NoteEntity): boolean {
     return this.updatedAt > other.updatedAt
@@ -48,6 +54,10 @@ export class NoteEntity {
     return new NoteEntity({ ...this.toProps(), syncedAt })
   }
 
+  withDeletedAt(deletedAt: Date): NoteEntity {
+    return new NoteEntity({ ...this.toProps(), deletedAt })
+  }
+
   private toProps(): NoteProps {
     return {
       id: this.id,
@@ -57,6 +67,7 @@ export class NoteEntity {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       syncedAt: this.syncedAt,
+      deletedAt: this.deletedAt,
     }
   }
 }

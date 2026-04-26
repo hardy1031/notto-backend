@@ -5,6 +5,7 @@ type NotebookProps = {
   createdAt: Date
   updatedAt: Date
   syncedAt: Date
+  deletedAt: Date | null
 }
 
 export class NotebookEntity {
@@ -14,6 +15,7 @@ export class NotebookEntity {
   readonly createdAt!: Date
   readonly updatedAt!: Date
   readonly syncedAt!: Date
+  readonly deletedAt!: Date | null
 
   private constructor(props: NotebookProps) {
     Object.assign(this, props)
@@ -26,6 +28,10 @@ export class NotebookEntity {
 
   static reconstruct(props: NotebookProps): NotebookEntity {
     return new NotebookEntity(props)
+  }
+
+  get isDeleted(): boolean {
+    return this.deletedAt !== null
   }
 
   /** Returns true if this notebook was updated more recently than the other (for LWW sync). */
@@ -41,6 +47,10 @@ export class NotebookEntity {
     return new NotebookEntity({ ...this.toProps(), syncedAt })
   }
 
+  withDeletedAt(deletedAt: Date): NotebookEntity {
+    return new NotebookEntity({ ...this.toProps(), deletedAt })
+  }
+
   private toProps(): NotebookProps {
     return {
       id: this.id,
@@ -49,6 +59,7 @@ export class NotebookEntity {
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
       syncedAt: this.syncedAt,
+      deletedAt: this.deletedAt,
     }
   }
 }

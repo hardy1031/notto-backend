@@ -15,17 +15,20 @@ import { GenerateQuizzesUseCase } from "../usecases/GenerateQuizzesUseCase.ts"
 export const syncQuizzesRouter = new Hono<{ Variables: AppVariables }>()
 
 syncQuizzesRouter.use("*", authMiddleware)
-syncQuizzesRouter.use("*", userRateLimit(20, 60 * 1000)) // 20 requests per minute
+syncQuizzesRouter.use("*", userRateLimit(20, 60 * 1000))
 
 syncQuizzesRouter.post("/", validate("json", syncQuizzesSchema), async (c) => {
   const userId = c.get("userId")
   const body = c.req.valid("json")
+
+  const quizRepo = new SupabaseQuizRepository()
 
   const result = await GenerateQuizzesUseCase(
     {
       userId,
       clientContextObjectIds: body.context_object_ids,
       clientQuizIds: body.quiz_ids,
+      deletedQuizIds: body.deleted_quiz_ids,
     },
     {
       noteRepo: new SupabaseNoteRepository(),
@@ -33,7 +36,8 @@ syncQuizzesRouter.post("/", validate("json", syncQuizzesSchema), async (c) => {
       notePieceRepo: new SupabaseNotePieceRepository(),
       contextObjectRepo: new SupabaseContextObjectRepository(),
       contextObjectQueryService: new SupabaseContextObjectRepository(),
-      quizQueryService: new SupabaseQuizRepository(),
+      quizQueryService: quizRepo,
+      quizRepo,
       aiRepo: new GeminiAIService(),
     }
   )
@@ -63,6 +67,7 @@ syncQuizzesRouter.post("/", validate("json", syncQuizzesSchema), async (c) => {
         choice_pool: q.choicePool,
         created_at: q.createdAt.toISOString(),
         updated_at: q.updatedAt.toISOString(),
+        deleted_at: q.deletedAt?.toISOString() ?? null,
       })),
     },
     201

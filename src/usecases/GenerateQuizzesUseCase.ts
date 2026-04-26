@@ -2,6 +2,7 @@ import type { AIService } from "../domain/ai/AIService.ts"
 import { ContextObjectEntity } from "../domain/contextObject/ContextObjectEntity.ts"
 import type { ContextObjectRepository } from "../domain/contextObject/ContextObjectRepository.ts"
 import { QuizEntity } from "../domain/contextObject/quiz/QuizEntity.ts"
+import type { QuizRepository } from "../domain/contextObject/quiz/QuizRepository.ts"
 import { NotePieceEntity } from "../domain/note/notePiece/NotePieceEntity.ts"
 import type { NotePieceContent } from "../domain/types.ts"
 import { parsedNoteSchema } from "../schemas/sync.ts"
@@ -15,6 +16,7 @@ export type GenerateQuizzesInput = {
   userId: string
   clientContextObjectIds: string[]
   clientQuizIds: string[]
+  deletedQuizIds: string[]
 }
 
 export type GenerateQuizzesOutput = {
@@ -31,12 +33,18 @@ export async function GenerateQuizzesUseCase(
     contextObjectRepo: ContextObjectRepository
     contextObjectQueryService: ContextObjectQueryService
     quizQueryService: QuizQueryService
+    quizRepo: QuizRepository
     aiRepo: AIService
   }
 ): Promise<GenerateQuizzesOutput> {
-  const { userId, clientContextObjectIds, clientQuizIds } = input
+  const { userId, clientContextObjectIds, clientQuizIds, deletedQuizIds } = input
 
-  // get all note IDs for the user
+  // process quiz deletions first
+  for (const quizId of deletedQuizIds) {
+    await deps.quizRepo.softDelete(quizId, new Date())
+  }
+
+  // get all non-deleted note IDs for the user
   const allNotes = await deps.noteRepo.findByUserId(userId)
   const allNoteIds = allNotes.map((note) => note.id)
 
@@ -59,7 +67,6 @@ export async function GenerateQuizzesUseCase(
     return parsed
   }
 
-  // collect pieces with their content, then generate all context objects in one AI call
   const piecesWithContent: {
     piece: (typeof uninterpretedPieces)[number]
     expression: string
@@ -98,7 +105,6 @@ export async function GenerateQuizzesUseCase(
     await deps.contextObjectRepo.bulkCreate(newContextObjects)
   }
 
-  // generate quizzes for context objects that don't have quizzes yet
   const contextObjectsWithoutQuizzes =
     await deps.contextObjectQueryService.findWithoutQuizzes(allNoteIds)
   const generatedQuizItems = await deps.aiRepo.generateQuizzes(contextObjectsWithoutQuizzes)
@@ -114,19 +120,27 @@ export async function GenerateQuizzesUseCase(
     await deps.contextObjectRepo.bulkCreateQuizzes(newQuizzes)
   }
 
-  // return context objects and quizzes the server has that the client does not
+  // return context objects and quizzes for sync:
+  // - new for client: server has it, client doesn't, not deleted
+  // - tombstones: client has it, server has deleted_at set
   const clientContextObjectIdSet = new Set(clientContextObjectIds)
   const clientQuizIdSet = new Set(clientQuizIds)
 
   const allContextObjects = await deps.contextObjectQueryService.findByUserId(userId)
-  const allContextObjectIds = allContextObjects.map((co) => co.id)
-  const allQuizzes =
-    allContextObjectIds.length > 0
-      ? await deps.quizQueryService.findByContextObjectIds(allContextObjectIds)
-      : []
+  const allQuizzes = await deps.quizQueryService.findAllForSync(userId)
+
+  const contextObjectsForClient = allContextObjects.filter(
+    (co) => !clientContextObjectIdSet.has(co.id)
+  )
+
+  const quizzesForClient = allQuizzes.filter(
+    (q) =>
+      (!clientQuizIdSet.has(q.id) && !q.isDeleted) || // new for client
+      (clientQuizIdSet.has(q.id) && q.isDeleted) // tombstone
+  )
 
   return {
-    contextObjects: allContextObjects.filter((co) => !clientContextObjectIdSet.has(co.id)),
-    quizzes: allQuizzes.filter((q) => !clientQuizIdSet.has(q.id)),
+    contextObjects: contextObjectsForClient,
+    quizzes: quizzesForClient,
   }
 }

@@ -16,6 +16,7 @@ export const syncNotebooksSchema = z.object({
         name: z.string().min(1).max(100),
         created_at: z.string().datetime(),
         updated_at: z.string().datetime(),
+        deleted_at: z.string().datetime().nullable().optional(),
       })
     )
     .max(500)
@@ -29,6 +30,7 @@ export const syncNotebooksSchema = z.object({
         content: parsedNoteSchema,
         created_at: z.string().datetime(),
         updated_at: z.string().datetime(),
+        deleted_at: z.string().datetime().nullable().optional(),
       })
     )
     .max(500)
@@ -38,6 +40,7 @@ export const syncNotebooksSchema = z.object({
 export const syncQuizzesSchema = z.object({
   context_object_ids: z.array(z.string().uuid()).default([]),
   quiz_ids: z.array(z.string().uuid()).default([]),
+  deleted_quiz_ids: z.array(z.string().uuid()).default([]),
 })
 
 export const syncQuizRunsSchema = z.object({

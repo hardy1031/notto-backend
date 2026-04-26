@@ -10,6 +10,7 @@ type QuizProps = {
   choicePool: string[]
   createdAt: Date
   updatedAt: Date
+  deletedAt: Date | null
 }
 
 export class QuizEntity {
@@ -21,6 +22,7 @@ export class QuizEntity {
   readonly choicePool!: string[]
   readonly createdAt!: Date
   readonly updatedAt!: Date
+  readonly deletedAt!: Date | null
 
   private constructor(props: QuizProps) {
     Object.assign(this, props)
@@ -33,6 +35,10 @@ export class QuizEntity {
 
   static reconstruct(props: QuizProps): QuizEntity {
     return new QuizEntity(props)
+  }
+
+  get isDeleted(): boolean {
+    return this.deletedAt !== null
   }
 
   /** Creates a QuizEntity from AI-generated data for a given ContextObject. */
@@ -51,6 +57,7 @@ export class QuizEntity {
       choicePool: generated.choicePool,
       createdAt: now,
       updatedAt: now,
+      deletedAt: null,
     })
   }
 }

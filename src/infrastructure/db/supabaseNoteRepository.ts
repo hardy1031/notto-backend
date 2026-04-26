@@ -14,6 +14,7 @@ function toNote(row: Record<string, unknown>): NoteEntity {
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
     syncedAt: new Date(row.synced_at as string),
+    deletedAt: row.deleted_at ? new Date(row.deleted_at as string) : null,
   })
 }
 
@@ -24,7 +25,7 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
         SELECT n.*
         FROM notes n
         JOIN notebooks nb ON nb.id = n.notebook_id
-        WHERE nb.user_id = ${userId} AND n.id = ANY(${ids})
+        WHERE nb.user_id = ${userId} AND n.id = ANY(${ids}) AND n.deleted_at IS NULL
       `
       return rows.map(toNote)
     } catch (e) {
@@ -33,6 +34,20 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
   }
 
   async findByUserId(userId: string): Promise<NoteEntity[]> {
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT n.*
+        FROM notes n
+        JOIN notebooks nb ON nb.id = n.notebook_id
+        WHERE nb.user_id = ${userId} AND n.deleted_at IS NULL
+      `
+      return rows.map(toNote)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
+  }
+
+  async findAllForSync(userId: string): Promise<NoteEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT n.*
@@ -99,6 +114,19 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
             ON CONFLICT (id) DO UPDATE SET note_id = EXCLUDED.note_id, created_at = EXCLUDED.created_at
           `
         }
+      })
+    } catch (e) {
+      throw new DBError(String(e))
+    }
+  }
+
+  async softDelete(id: string, deletedAt: Date): Promise<void> {
+    try {
+      await sql.begin(async (tx) => {
+        // physically delete note_pieces (cascades to context_objects and quizzes)
+        await tx`DELETE FROM note_pieces WHERE note_id = ${id}`
+        // soft-delete the note
+        await tx`UPDATE notes SET deleted_at = ${deletedAt.toISOString()} WHERE id = ${id}`
       })
     } catch (e) {
       throw new DBError(String(e))

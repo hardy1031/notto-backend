@@ -7,6 +7,7 @@ export type SyncNotebookInput = {
   name: string
   createdAt: Date
   updatedAt: Date
+  deletedAt: Date | null
 }
 
 export type SyncNotebooksOutput = {
@@ -25,48 +26,69 @@ export async function SyncNotebooksUseCase(
 ): Promise<SyncNotebooksOutput> {
   const { userId, clientNotebooks } = input
 
-  // sync notebooks from client to server (LWW by updatedAt)
   const clientNotebookIds = clientNotebooks.map((notebook) => notebook.id)
   const serverNotebooksById = new Map<string, NotebookEntity>()
+
   if (clientNotebookIds.length > 0) {
-    const serverNotebooks = await deps.notebookQueryService.findByUserIdAndIds(
-      userId,
-      clientNotebookIds
-    )
+    // fetch including deleted so we can apply "deleted wins" correctly
+    const serverNotebooks = await deps.notebookQueryService.findAllForSync(userId)
     for (const notebook of serverNotebooks) {
       serverNotebooksById.set(notebook.id, notebook)
     }
   }
 
-  // create a notebook if server doesn't have one, update if one exists already
-  for (const notebook of clientNotebooks) {
-    const serverNotebook = serverNotebooksById.get(notebook.id)
+  const now = new Date()
+
+  for (const clientNotebook of clientNotebooks) {
+    const serverNotebook = serverNotebooksById.get(clientNotebook.id)
+
+    if (clientNotebook.deletedAt) {
+      // client deleted this notebook
+      if (serverNotebook && !serverNotebook.isDeleted) {
+        // "deleted wins": propagate deletion to server with cascade
+        await deps.notebookRepo.softDeleteWithCascade(clientNotebook.id, clientNotebook.deletedAt)
+      }
+      // if server is already deleted or doesn't exist: no-op
+      continue
+    }
+
     if (!serverNotebook) {
       await deps.notebookRepo.create(
         NotebookEntity.create({
-          id: notebook.id,
+          id: clientNotebook.id,
           userId,
-          name: notebook.name,
-          createdAt: notebook.createdAt,
-          updatedAt: notebook.updatedAt,
-          syncedAt: new Date(),
+          name: clientNotebook.name,
+          createdAt: clientNotebook.createdAt,
+          updatedAt: clientNotebook.updatedAt,
+          syncedAt: now,
+          deletedAt: null,
         })
       )
-    } else if (notebook.updatedAt > serverNotebook.updatedAt) {
+    } else if (serverNotebook.isDeleted) {
+      // "deleted wins": ignore client update, server deletion takes precedence
+    } else if (clientNotebook.updatedAt > serverNotebook.updatedAt) {
       await deps.notebookRepo.update(
-        serverNotebook.withUpdates(notebook.name, notebook.updatedAt, new Date())
+        serverNotebook.withUpdates(clientNotebook.name, clientNotebook.updatedAt, now)
       )
     }
   }
 
-  if (clientNotebookIds.length > 0) {
-    await deps.notebookRepo.updateSyncedAt(clientNotebookIds, new Date())
+  const nonDeletedClientIds = clientNotebooks.filter((n) => !n.deletedAt).map((n) => n.id)
+  if (nonDeletedClientIds.length > 0) {
+    await deps.notebookRepo.updateSyncedAt(nonDeletedClientIds, now)
   }
 
-  // return notebooks the server has that the client does not
-  const serverNotebooks = await deps.notebookQueryService.findByUserId(userId)
+  // return notebooks for sync:
+  // - new for client: server has it, client doesn't, not deleted
+  // - tombstones: client has it, server has deleted_at set
+  const allServerNotebooks = await deps.notebookQueryService.findAllForSync(userId)
   const clientNotebookIdSet = new Set(clientNotebookIds)
-  return {
-    clientNotebooks: serverNotebooks.filter((notebook) => !clientNotebookIdSet.has(notebook.id)),
-  }
+
+  const result = allServerNotebooks.filter(
+    (n) =>
+      (!clientNotebookIdSet.has(n.id) && !n.isDeleted) || // new for client
+      (clientNotebookIdSet.has(n.id) && n.isDeleted) // tombstone for client
+  )
+
+  return { clientNotebooks: result }
 }

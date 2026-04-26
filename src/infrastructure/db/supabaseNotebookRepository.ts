@@ -12,14 +12,15 @@ function toNotebook(row: Record<string, unknown>): NotebookEntity {
     createdAt: new Date(row.created_at as string),
     updatedAt: new Date(row.updated_at as string),
     syncedAt: new Date(row.synced_at as string),
+    deletedAt: row.deleted_at ? new Date(row.deleted_at as string) : null,
   })
 }
 
 export class SupabaseNotebookRepository implements NotebookRepository, NotebookQueryService {
-  async findByUserIdAndIds(userId: string, ids: string[]): Promise<NotebookEntity[]> {
+  async findByUserId(userId: string): Promise<NotebookEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
-        SELECT * FROM notebooks WHERE user_id = ${userId} AND id = ANY(${ids})
+        SELECT * FROM notebooks WHERE user_id = ${userId} AND deleted_at IS NULL
       `
       return rows.map(toNotebook)
     } catch (e) {
@@ -27,7 +28,18 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
     }
   }
 
-  async findByUserId(userId: string): Promise<NotebookEntity[]> {
+  async findByUserIdAndIds(userId: string, ids: string[]): Promise<NotebookEntity[]> {
+    try {
+      const rows = await sql<Record<string, unknown>[]>`
+        SELECT * FROM notebooks WHERE user_id = ${userId} AND id = ANY(${ids}) AND deleted_at IS NULL
+      `
+      return rows.map(toNotebook)
+    } catch (e) {
+      throw new DBError(String(e))
+    }
+  }
+
+  async findAllForSync(userId: string): Promise<NotebookEntity[]> {
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM notebooks WHERE user_id = ${userId}
@@ -65,6 +77,27 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
         SET name = ${notebook.name}, updated_at = ${notebook.updatedAt.toISOString()}, synced_at = ${notebook.syncedAt.toISOString()}
         WHERE id = ${notebook.id}
       `
+    } catch (e) {
+      throw new DBError(String(e))
+    }
+  }
+
+  async softDeleteWithCascade(id: string, deletedAt: Date): Promise<void> {
+    try {
+      await sql.begin(async (tx) => {
+        // physically delete note_pieces (cascades to context_objects and quizzes via ON DELETE CASCADE)
+        await tx`
+          DELETE FROM note_pieces WHERE note_id IN (SELECT id FROM notes WHERE notebook_id = ${id})
+        `
+        // soft-delete all notes under this notebook
+        await tx`
+          UPDATE notes SET deleted_at = ${deletedAt.toISOString()} WHERE notebook_id = ${id} AND deleted_at IS NULL
+        `
+        // soft-delete the notebook
+        await tx`
+          UPDATE notebooks SET deleted_at = ${deletedAt.toISOString()} WHERE id = ${id}
+        `
+      })
     } catch (e) {
       throw new DBError(String(e))
     }
