@@ -14,7 +14,8 @@ http:
     data: |-
       {
         "context_object_ids": [],
-        "quiz_ids": []
+        "quiz_ids": [],
+        "deleted_quiz_ids": []
       }
 
 runtime:
