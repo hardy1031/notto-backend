@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: http://localhost:3000/sync/notebooks
+  url: "{{baseUrl}}/sync/notebooks"
   auth:
     type: bearer
     token: "{{token}}"

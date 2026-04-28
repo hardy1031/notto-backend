@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: http://localhost:3000/sync/quizzes
+  url: "{{baseUrl}}/sync/quizzes"
   auth:
     type: bearer
     token: "{{token}}"

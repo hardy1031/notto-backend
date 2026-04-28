@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: http://localhost:3000/learn
+  url: "{{baseUrl}}/learn"
   auth:
     type: bearer
     token: "{{token}}"
