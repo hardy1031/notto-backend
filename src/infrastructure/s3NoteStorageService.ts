@@ -10,17 +10,21 @@ import type { NoteStorageService } from "../usecases/NoteStorageService.ts"
 
 function createClient() {
   const region = process.env.AWS_REGION
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY
   const endpoint = process.env.AWS_ENDPOINT
 
-  if (!region || !accessKeyId || !secretAccessKey) {
-    throw new Error("Missing AWS environment variables: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY")
+  if (!region) {
+    throw new Error("Missing AWS environment variable: AWS_REGION")
   }
+
+  // ローカル開発時は明示的なクレデンシャルを使用
+  // Lambda 環境では IAM ロールの一時クレデンシャルが自動注入されるため不要
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY
+  const credentials = accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined
 
   return new S3Client({
     region,
-    credentials: { accessKeyId, secretAccessKey },
+    ...(credentials ? { credentials } : {}),
     ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
   })
 }
@@ -95,7 +99,9 @@ export class S3NoteStorageService implements NoteStorageService {
           )
         }
 
-        continuationToken = listResponse.IsTruncated ? listResponse.NextContinuationToken : undefined
+        continuationToken = listResponse.IsTruncated
+          ? listResponse.NextContinuationToken
+          : undefined
       } while (continuationToken)
     } catch (err) {
       throw new S3Error(`Failed to delete objects for user ${userId}: ${String(err)}`)
