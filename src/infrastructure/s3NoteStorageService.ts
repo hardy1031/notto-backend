@@ -16,15 +16,11 @@ function createClient() {
     throw new Error("Missing AWS environment variable: AWS_REGION")
   }
 
-  // ローカル開発時は明示的なクレデンシャルを使用
-  // Lambda 環境では IAM ロールの一時クレデンシャルが自動注入されるため不要
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY
-  const credentials = accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined
-
+  // credentials は渡さない。SDK のデフォルト credential chain に任せる。
+  // - Lambda: IAM ロールの一時クレデンシャル（ACCESS_KEY + SECRET + SESSION_TOKEN）を自動使用
+  // - ローカル: AWS_ENDPOINT が指定されている場合は LocalStack 等に接続
   return new S3Client({
     region,
-    ...(credentials ? { credentials } : {}),
     ...(endpoint ? { endpoint, forcePathStyle: true } : {}),
   })
 }
