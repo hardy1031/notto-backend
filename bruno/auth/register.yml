@@ -17,6 +17,10 @@ http:
         "target_language": "{{test_target_language}}"
       }
 
+tests:
+  - name: status is 201
+    assert: res.status == 201
+
 runtime:
   scripts:
     - type: after-response

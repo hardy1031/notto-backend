@@ -32,6 +32,10 @@ runtime:
           bru.setEnvVar("quiz_id_2", res.body.quizzes[1].id);
         }
 
+tests:
+  - name: status is 200
+    assert: res.status == 200
+
 settings:
   encodeUrl: true
   timeout: 0

@@ -14,6 +14,10 @@ http:
         "password": "{{test_password}}"
       }
 
+tests:
+  - name: status is 200
+    assert: res.status == 200
+
 runtime:
   scripts:
     - type: after-response

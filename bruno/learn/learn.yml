@@ -17,6 +17,10 @@ http:
         "question": "How is 겠냐 different from 겠어?"
       }
 
+tests:
+  - name: status is 200
+    assert: res.status == 200
+
 settings:
   encodeUrl: true
   timeout: 0
