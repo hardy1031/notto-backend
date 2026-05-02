@@ -1,12 +1,11 @@
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
 import type { AIService } from "../../domain/ai/AIService.ts"
 import type { ContextObjectEntity } from "../../domain/contextObject/ContextObjectEntity.ts"
 import type { AILearnResponse, GeneratedContextObject, GeneratedQuiz } from "../../domain/types.ts"
 import { AIUnavailableError } from "../../errors/index.ts"
-
-const readPrompt = (filename: string): string =>
-  readFileSync(join(process.cwd(), "src/prompts", filename), "utf-8")
+import {
+  GENERATE_CONTEXT_OBJECTS_PROMPT,
+  GENERATE_QUIZZES_PROMPT,
+} from "../../prompts/index.ts"
 
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 const GENERATE_CONTENT_PATH = (model: string) => `/models/${model}:generateContent`
@@ -90,7 +89,7 @@ export class GeminiAIService implements AIService {
   async generateContextObjects(
     pieces: { expression: string; annotation: string }[]
   ): Promise<GeneratedContextObject[]> {
-    const promptText = readPrompt("generateContextObjects.txt")
+    const promptText = GENERATE_CONTEXT_OBJECTS_PROMPT
 
     const text = await this.callWithRetry("gemini-2.5-flash-lite", {
       system_instruction: { parts: [{ text: promptText }] },
@@ -106,7 +105,7 @@ export class GeminiAIService implements AIService {
   }
 
   async generateQuizzes(contextObjects: ContextObjectEntity[]): Promise<GeneratedQuiz[]> {
-    const promptText = readPrompt("generateQuizzes.txt")
+    const promptText = GENERATE_QUIZZES_PROMPT
 
     const text = await this.callWithRetry("gemini-2.5-flash-lite", {
       system_instruction: { parts: [{ text: promptText }] },
@@ -121,24 +120,7 @@ export class GeminiAIService implements AIService {
     return parsed.quizzes as GeneratedQuiz[]
   }
 
-  async askAI(contextObject: ContextObjectEntity, question: string): Promise<AILearnResponse> {
-    const promptText = readPrompt("askAI.txt")
-
-    const text = await this.callWithRetry("gemini-2.5-flash-lite", {
-      system_instruction: { parts: [{ text: promptText }] },
-      contents: [
-        {
-          parts: [{ text: JSON.stringify({ contextObject, question }) }],
-          role: "user",
-        },
-      ],
-      generation_config: { response_mime_type: "application/json" },
-    })
-
-    const parsed = this.parseJSON<AILearnResponse>(text)
-    if (!parsed.explanation || !Array.isArray(parsed.examples)) {
-      throw new AIUnavailableError("Malformed AI learn response")
-    }
-    return parsed
+  async askAI(_contextObject: ContextObjectEntity, _question: string): Promise<AILearnResponse> {
+    return { explanation: "This feature is currently under development.", examples: [], relatedExpressions: [] }
   }
 }
