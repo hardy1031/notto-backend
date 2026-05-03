@@ -30,14 +30,16 @@ app.use(async (c, next) => {
   await next()
   const duration = Date.now() - start
   const status = c.res.status
-  const log = { method: c.req.method, path: c.req.path, status, duration }
+  const base = { method: c.req.method, path: c.req.path, status, duration }
   // Log all requests. 4xx (e.g. validation errors) are the client's fault,
   // not server bugs, but we still log them at ERROR level so they're
   // visible in CloudWatch without requiring investigation.
+  // For error responses, include the response body for full context.
   if (status >= 400) {
-    console.error(JSON.stringify(log))
+    const body = await c.res.clone().json().catch(() => null)
+    console.error(JSON.stringify({ ...base, body }))
   } else {
-    console.log(JSON.stringify(log))
+    console.log(JSON.stringify(base))
   }
 })
 
@@ -69,11 +71,11 @@ app.onError((err, c) => {
     return c.json({ error: { code: "AI_UNAVAILABLE", message: err.message } }, 503)
   }
   if (err instanceof S3Error) {
-    console.error(JSON.stringify({ ...ctx, error: "S3Error", message: err.message }))
+    console.error(JSON.stringify({ ...ctx, error: "S3Error", message: err.message, stack: err.stack }))
     return c.json({ error: { code: "STORAGE_ERROR", message: "Storage operation failed" } }, 503)
   }
   if (err instanceof DBError) {
-    console.error(JSON.stringify({ ...ctx, error: "DBError", message: err.message }))
+    console.error(JSON.stringify({ ...ctx, error: "DBError", message: err.message, stack: err.stack }))
     return c.json({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } }, 500)
   }
   console.error(
