@@ -70,6 +70,6 @@ syncQuizzesRouter.post("/", validate("json", syncQuizzesSchema), async (c) => {
         deleted_at: q.deletedAt?.toISOString() ?? null,
       })),
     },
-    201
+    200
   )
 })
