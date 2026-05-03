@@ -21,17 +21,17 @@ syncQuizRunsRouter.post(
     const result = await SyncQuizRunsUseCase(
       {
         userId,
-        quizRuns: body.quiz_runs.map((qr) => ({
-          id: qr.id,
-          startedAt: new Date(qr.started_at),
-          completedAt: qr.completed_at ? new Date(qr.completed_at) : null,
-          records: qr.records.map((r) => ({
-            id: r.id,
-            quizId: r.quiz_id,
-            choices: r.choices,
-            userAnswer: r.user_answer,
-            isCorrect: r.is_correct,
-            createdAt: new Date(r.created_at),
+        quizRuns: body.quiz_runs.map((quizRun) => ({
+          id: quizRun.id,
+          startedAt: new Date(quizRun.started_at),
+          completedAt: quizRun.completed_at ? new Date(quizRun.completed_at) : null,
+          records: quizRun.records.map((record) => ({
+            id: record.id,
+            quizId: record.quiz_id,
+            choices: record.choices,
+            userAnswer: record.user_answer,
+            isCorrect: record.is_correct,
+            createdAt: new Date(record.created_at),
           })),
         })),
       },
@@ -47,14 +47,14 @@ syncQuizRunsRouter.post(
         id: quizRun.id,
         started_at: quizRun.startedAt.toISOString(),
         completed_at: quizRun.completedAt ? quizRun.completedAt.toISOString() : null,
-        records: quizRecords.map((r) => ({
-          id: r.id,
-          quiz_run_id: r.quizRunId,
-          quiz_id: r.quizId,
-          choices: r.choices,
-          user_answer: r.userAnswer,
-          is_correct: r.isCorrect,
-          created_at: r.createdAt.toISOString(),
+        records: quizRecords.map((record) => ({
+          id: record.id,
+          quiz_run_id: record.quizRunId,
+          quiz_id: record.quizId,
+          choices: record.choices,
+          user_answer: record.userAnswer,
+          is_correct: record.isCorrect,
+          created_at: record.createdAt.toISOString(),
         })),
       })),
     })
