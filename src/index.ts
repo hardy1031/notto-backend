@@ -25,6 +25,20 @@ const app = new Hono()
 // Leave unset in production (native-only) to skip CORS entirely.
 app.use(bodyLimit({ maxSize: 1 * 1024 * 1024 })) // 1MB
 
+app.use(async (c, next) => {
+  const start = Date.now()
+  await next()
+  const duration = Date.now() - start
+  console.log(
+    JSON.stringify({
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      duration,
+    })
+  )
+})
+
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim())
 if (allowedOrigins && allowedOrigins.length > 0) {
   app.use(cors({ origin: allowedOrigins }))
@@ -38,6 +52,8 @@ app.route("/sync/quiz-runs", syncQuizRunsRouter)
 app.route("/learn", learnRouter)
 
 app.onError((err, c) => {
+  const ctx = { method: c.req.method, path: c.req.path }
+
   if (err instanceof NotFoundError) {
     return c.json({ error: { code: "NOT_FOUND", message: err.message } }, 404)
   }
@@ -51,14 +67,16 @@ app.onError((err, c) => {
     return c.json({ error: { code: "AI_UNAVAILABLE", message: err.message } }, 503)
   }
   if (err instanceof S3Error) {
-    console.error(`[S3Error]`, err.message)
+    console.error(JSON.stringify({ ...ctx, error: "S3Error", message: err.message }))
     return c.json({ error: { code: "STORAGE_ERROR", message: "Storage operation failed" } }, 503)
   }
   if (err instanceof DBError) {
-    console.error(`[DBError]`, err.message)
+    console.error(JSON.stringify({ ...ctx, error: "DBError", message: err.message }))
     return c.json({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } }, 500)
   }
-  console.error(`[${err.constructor.name}]`, err.message, err.stack)
+  console.error(
+    JSON.stringify({ ...ctx, error: err.constructor.name, message: err.message, stack: err.stack })
+  )
   return c.json({ error: { code: "INTERNAL_ERROR", message: "Internal server error" } }, 500)
 })
 
