@@ -5,12 +5,12 @@ For each expression, return a JSON object with the following structure:
   "context_objects": [
     {
       "expression": "the expression or phrase",
-      "base_meaning": "literal or dictionary meaning",
-      "actual_nuance": "how it's actually used in context",
+      "baseMeaning": "literal or dictionary meaning",
+      "actualNuance": "how it's actually used in context",
       "tone": "emotional tone (e.g. casual, serious, humorous)",
       "formality": "casual | neutral | formal",
-      "is_slang": true or false,
-      "example_dialogue": [
+      "isSlang": true or false,
+      "exampleDialogue": [
         { "speaker": "A", "text": "example sentence" },
         { "speaker": "B", "text": "response" }
       ]
@@ -28,16 +28,16 @@ Return a JSON object:
 {
   "quizzes": [
     {
-      "context_object_index": 0,
+      "contextObjectIndex": 0,
       "type": "choose_context | choose_pronunciation | fill_metadata",
-      "question_sentence": "the question text",
+      "questionSentence": "the question text",
       "answer": "the correct answer",
-      "choices": ["the correct answer", "distractor 1", "distractor 2", "distractor 3", "distractor 4", "distractor 5", "distractor 6", "distractor 7", "distractor 8", "distractor 9"]
+      "choicePool": ["the correct answer", "distractor 1", "distractor 2", "distractor 3", "distractor 4", "distractor 5", "distractor 6", "distractor 7", "distractor 8", "distractor 9"]
     }
   ]
 }
 
-The "choices" array must contain exactly 10 strings. The correct answer must be included among the choices. The other 9 choices should be plausible but incorrect distractors appropriate to the quiz type.
+The "choicePool" array must contain exactly 10 strings. The correct answer must be included among the choices. The other 9 choices should be plausible but incorrect distractors appropriate to the quiz type.
 
 Quiz types:
 - choose_context: Test understanding of when/how to use the expression
