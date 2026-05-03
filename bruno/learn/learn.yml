@@ -13,7 +13,6 @@ http:
     type: json
     data: |-
       {
-        "context_object_id": "{{context_object_id}}",
         "question": "How is 겠냐 different from 겠어?"
       }
 

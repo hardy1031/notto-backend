@@ -73,7 +73,7 @@ export async function SyncNotebooksUseCase(
     }
   }
 
-  const nonDeletedClientIds = clientNotebooks.filter((n) => !n.deletedAt).map((n) => n.id)
+  const nonDeletedClientIds = clientNotebooks.filter((notebook) => !notebook.deletedAt).map((notebook) => notebook.id)
   if (nonDeletedClientIds.length > 0) {
     await deps.notebookRepo.updateSyncedAt(nonDeletedClientIds, now)
   }
@@ -85,9 +85,9 @@ export async function SyncNotebooksUseCase(
   const clientNotebookIdSet = new Set(clientNotebookIds)
 
   const result = allServerNotebooks.filter(
-    (n) =>
-      (!clientNotebookIdSet.has(n.id) && !n.isDeleted) || // new for client
-      (clientNotebookIdSet.has(n.id) && n.isDeleted) // tombstone for client
+    (notebook) =>
+      (!clientNotebookIdSet.has(notebook.id) && !notebook.isDeleted) || // new for client
+      (clientNotebookIdSet.has(notebook.id) && notebook.isDeleted) // tombstone for client
   )
 
   return { clientNotebooks: result }

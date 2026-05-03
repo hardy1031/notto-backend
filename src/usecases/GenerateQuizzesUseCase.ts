@@ -4,51 +4,33 @@ import type { ContextObjectRepository } from "../domain/contextObject/ContextObj
 import { QuizEntity } from "../domain/contextObject/quiz/QuizEntity.ts"
 import type { QuizRepository } from "../domain/contextObject/quiz/QuizRepository.ts"
 import { NotePieceEntity } from "../domain/note/notePiece/NotePieceEntity.ts"
+import type { NoteEntity } from "../domain/note/NoteEntity.ts"
 import type { NotePieceContent } from "../domain/types.ts"
 import { parsedNoteSchema } from "../schemas/sync.ts"
 import type { NoteStorageService } from "./NoteStorageService.ts"
 import type { ContextObjectQueryService } from "./queries/ContextObjectQueryService.ts"
 import type { NotePieceQueryService } from "./queries/NotePieceQueryService.ts"
-import type { NoteQueryService } from "./queries/NoteQueryService.ts"
-import type { QuizQueryService } from "./queries/QuizQueryService.ts"
 
 export type GenerateQuizzesInput = {
   userId: string
-  clientContextObjectIds: string[]
-  clientQuizIds: string[]
-  deletedQuizIds: string[]
-}
-
-export type GenerateQuizzesOutput = {
-  contextObjects: ContextObjectEntity[]
-  quizzes: QuizEntity[]
+  allNotes: NoteEntity[]
 }
 
 export async function GenerateQuizzesUseCase(
   input: GenerateQuizzesInput,
   deps: {
-    noteRepo: NoteQueryService
     noteStorage: NoteStorageService
     notePieceRepo: NotePieceQueryService
     contextObjectRepo: ContextObjectRepository
     contextObjectQueryService: ContextObjectQueryService
-    quizQueryService: QuizQueryService
     quizRepo: QuizRepository
     aiRepo: AIService
   }
-): Promise<GenerateQuizzesOutput> {
-  const { userId, clientContextObjectIds, clientQuizIds, deletedQuizIds } = input
-
-  // process quiz deletions first
-  for (const quizId of deletedQuizIds) {
-    await deps.quizRepo.softDelete(quizId, new Date())
-  }
-
-  // get all non-deleted note IDs for the user
-  const allNotes = await deps.noteRepo.findByUserId(userId)
+): Promise<void> {
+  const { userId, allNotes } = input
   const allNoteIds = allNotes.map((note) => note.id)
 
-  if (allNoteIds.length === 0) return { contextObjects: [], quizzes: [] }
+  if (allNoteIds.length === 0) return
 
   // find note pieces that have not been interpreted into context objects yet
   const notePieces = await deps.notePieceRepo.findByNoteIds(allNoteIds)
@@ -67,44 +49,53 @@ export async function GenerateQuizzesUseCase(
     return parsed
   }
 
-  const piecesWithContent: {
-    piece: (typeof uninterpretedPieces)[number]
+  // combines NotePieceEntity (from DB) with expression/annotation (from S3)
+  type NotePieceWithContent = {
+    notePieceEntity: NotePieceEntity
     expression: string
     annotation: string
-  }[] = []
+  }
+
+  const piecesWithContent: NotePieceWithContent[] = []
   for (const piece of uninterpretedPieces) {
     const parsedNote = await getNotePieceContents(piece.noteId)
-    const pieceContent = parsedNote.find((p) => p.notePieceId === piece.id)
+    const pieceContent = parsedNote.find((content) => content.notePieceId === piece.id)
     if (!pieceContent) continue
     piecesWithContent.push({
-      piece,
+      notePieceEntity: piece,
       expression: pieceContent.expression,
       annotation: pieceContent.annotation,
     })
   }
 
+  // generate context objects from uninterpreted note pieces using AI
   const generatedContextObjects =
     piecesWithContent.length > 0
       ? await deps.aiRepo.generateContextObjects(
-          piecesWithContent.map((p) => ({ expression: p.expression, annotation: p.annotation }))
+          piecesWithContent.map((pieceWithContent) => ({
+            expression: pieceWithContent.expression,
+            annotation: pieceWithContent.annotation,
+          }))
         )
       : []
 
   const now = new Date()
-  const newContextObjects: ContextObjectEntity[] = piecesWithContent.map((p, i) =>
-    ContextObjectEntity.fromAIOutput(
-      generatedContextObjects[i]!,
-      p.piece.id,
-      p.piece.noteId,
-      crypto.randomUUID(),
-      now
-    )
+  const newContextObjects: ContextObjectEntity[] = piecesWithContent.map(
+    (pieceWithContent, i) =>
+      ContextObjectEntity.fromAIOutput(
+        generatedContextObjects[i]!,
+        pieceWithContent.notePieceEntity.id,
+        pieceWithContent.notePieceEntity.noteId,
+        crypto.randomUUID(),
+        now
+      )
   )
 
   if (newContextObjects.length > 0) {
     await deps.contextObjectRepo.bulkCreate(newContextObjects)
   }
 
+  // generate quizzes for context objects that don't have one yet using AI
   const contextObjectsWithoutQuizzes =
     await deps.contextObjectQueryService.findWithoutQuizzes(allNoteIds)
   const generatedQuizItems = await deps.aiRepo.generateQuizzes(contextObjectsWithoutQuizzes)
@@ -118,29 +109,5 @@ export async function GenerateQuizzesUseCase(
 
   if (newQuizzes.length > 0) {
     await deps.contextObjectRepo.bulkCreateQuizzes(newQuizzes)
-  }
-
-  // return context objects and quizzes for sync:
-  // - new for client: server has it, client doesn't, not deleted
-  // - tombstones: client has it, server has deleted_at set
-  const clientContextObjectIdSet = new Set(clientContextObjectIds)
-  const clientQuizIdSet = new Set(clientQuizIds)
-
-  const allContextObjects = await deps.contextObjectQueryService.findByUserId(userId)
-  const allQuizzes = await deps.quizQueryService.findAllForSync(userId)
-
-  const contextObjectsForClient = allContextObjects.filter(
-    (co) => !clientContextObjectIdSet.has(co.id)
-  )
-
-  const quizzesForClient = allQuizzes.filter(
-    (q) =>
-      (!clientQuizIdSet.has(q.id) && !q.isDeleted) || // new for client
-      (clientQuizIdSet.has(q.id) && q.isDeleted) // tombstone
-  )
-
-  return {
-    contextObjects: contextObjectsForClient,
-    quizzes: quizzesForClient,
   }
 }

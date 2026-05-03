@@ -40,7 +40,7 @@ export async function SyncQuizRunsUseCase(
   }
 ): Promise<SyncQuizRunsOutput> {
   const { userId, quizRuns } = input
-  const clientQuizRunIds = quizRuns.map((qr) => qr.id)
+  const clientQuizRunIds = quizRuns.map((quizRun) => quizRun.id)
 
   // insert quiz runs the server does not have yet
   if (quizRuns.length > 0) {
@@ -48,7 +48,7 @@ export async function SyncQuizRunsUseCase(
       userId,
       clientQuizRunIds
     )
-    const existingIds = new Set(existingQuizRuns.map((qr) => qr.quizRun.id))
+    const existingIds = new Set(existingQuizRuns.map((quizRun) => quizRun.quizRun.id))
 
     for (const quizRun of quizRuns) {
       if (existingIds.has(quizRun.id)) continue
@@ -88,7 +88,7 @@ export async function SyncQuizRunsUseCase(
   // return quiz runs the server has that the client does not
   const clientIdSet = new Set(clientQuizRunIds)
   const allServerQuizRuns = await deps.quizRunQueryService.findByUserId(userId)
-  const newQuizRuns = allServerQuizRuns.filter((qr) => !clientIdSet.has(qr.quizRun.id))
+  const newQuizRuns = allServerQuizRuns.filter((quizRun) => !clientIdSet.has(quizRun.quizRun.id))
 
   return { quizRuns: newQuizRuns }
 }

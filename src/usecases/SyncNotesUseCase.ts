@@ -40,7 +40,7 @@ export async function SyncNotesUseCase(
   const { userId, clientNotes } = input
 
   // validate that all notebooks referenced by non-deleted notes exist on the server
-  const activeClientNotes = clientNotes.filter((n) => !n.deletedAt)
+  const activeClientNotes = clientNotes.filter((note) => !note.deletedAt)
   const clientNotebookIds = [...new Set(activeClientNotes.map((note) => note.notebookId))]
   if (clientNotebookIds.length > 0) {
     const serverNotebooks = await deps.notebookQueryService.findByUserIdAndIds(
@@ -81,8 +81,8 @@ export async function SyncNotesUseCase(
     }
 
     const s3Key = NoteEntity.buildS3Key(userId, clientNote.notebookId, clientNote.id)
-    const pieces = clientNote.content.map((p) =>
-      NotePieceEntity.create({ id: p.notePieceId, noteId: clientNote.id, createdAt: now })
+    const pieces = clientNote.content.map((notePieceContent) =>
+      NotePieceEntity.create({ id: notePieceContent.notePieceId, noteId: clientNote.id, createdAt: now })
     )
 
     if (!serverNote) {
@@ -113,7 +113,7 @@ export async function SyncNotesUseCase(
     }
   }
 
-  const nonDeletedClientNoteIds = clientNotes.filter((n) => !n.deletedAt).map((n) => n.id)
+  const nonDeletedClientNoteIds = clientNotes.filter((note) => !note.deletedAt).map((note) => note.id)
   const allSyncedNoteIds = [...nonDeletedClientNoteIds]
   if (allSyncedNoteIds.length > 0) {
     await deps.noteRepo.updateSyncedAt(allSyncedNoteIds, now)
@@ -126,15 +126,15 @@ export async function SyncNotesUseCase(
   const clientNoteIdSet = new Set(clientNoteIds)
 
   const notesForClient = allServerNotes.filter(
-    (n) =>
-      (!clientNoteIdSet.has(n.id) && !n.isDeleted) || // new for client
-      (clientNoteIdSet.has(n.id) && n.isDeleted) // tombstone
+    (note) =>
+      (!clientNoteIdSet.has(note.id) && !note.isDeleted) || // new for client
+      (clientNoteIdSet.has(note.id) && note.isDeleted) // tombstone
   )
 
   // fetch content only for non-deleted notes
   const missingNotesWithContent = await Promise.all(
     notesForClient
-      .filter((n) => !n.isDeleted)
+      .filter((note) => !note.isDeleted)
       .map(async (note) => {
         const json = await deps.noteStorage.fetch(note.s3Key)
         return { note, content: parsedNoteSchema.parse(JSON.parse(json)) }
@@ -143,7 +143,7 @@ export async function SyncNotesUseCase(
 
   // include tombstones (no content needed — client just needs to know they're deleted)
   const tombstones = notesForClient
-    .filter((n) => n.isDeleted)
+    .filter((note) => note.isDeleted)
     .map((note) => ({ note, content: [] as NotePieceContent[] }))
 
   return {

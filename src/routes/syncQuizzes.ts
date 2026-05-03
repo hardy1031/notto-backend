@@ -10,7 +10,7 @@ import { userRateLimit } from "../middleware/rateLimit.ts"
 import { validate } from "../middleware/validate.ts"
 import { syncQuizzesSchema } from "../schemas/sync.ts"
 import type { AppVariables } from "../types/hono.ts"
-import { GenerateQuizzesUseCase } from "../usecases/GenerateQuizzesUseCase.ts"
+import { SyncQuizzesUseCase } from "../usecases/SyncQuizzesUseCase.ts"
 
 export const syncQuizzesRouter = new Hono<{ Variables: AppVariables }>()
 
@@ -23,7 +23,7 @@ syncQuizzesRouter.post("/", validate("json", syncQuizzesSchema), async (c) => {
 
   const quizRepo = new SupabaseQuizRepository()
 
-  const result = await GenerateQuizzesUseCase(
+  const result = await SyncQuizzesUseCase(
     {
       userId,
       clientContextObjectIds: body.context_object_ids,
