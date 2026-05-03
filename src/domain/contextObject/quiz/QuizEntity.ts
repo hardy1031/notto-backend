@@ -42,7 +42,7 @@ export class QuizEntity {
   }
 
   /** Creates a QuizEntity from AI-generated data for a given ContextObject. */
-  static fromGenerated(
+  static fromAIOutput(
     generated: GeneratedQuiz,
     contextObject: ContextObjectEntity,
     id: string,

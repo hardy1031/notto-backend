@@ -46,7 +46,7 @@ export class ContextObjectEntity {
   }
 
   /** Creates a ContextObjectEntity from AI-generated data. */
-  static fromGenerated(
+  static fromAIOutput(
     generated: GeneratedContextObject,
     notePieceId: string,
     noteId: string,

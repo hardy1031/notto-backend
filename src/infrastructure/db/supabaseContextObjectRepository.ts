@@ -26,6 +26,7 @@ export class SupabaseContextObjectRepository
   implements ContextObjectRepository, ContextObjectQueryService
 {
   async findByNoteIds(noteIds: string[]): Promise<ContextObjectEntity[]> {
+    if (noteIds.length === 0) return []
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM context_objects WHERE note_id = ANY(${noteIds})
@@ -53,6 +54,7 @@ export class SupabaseContextObjectRepository
   }
 
   async findWithoutQuizzes(noteIds: string[]): Promise<ContextObjectEntity[]> {
+    if (noteIds.length === 0) return []
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT co.*

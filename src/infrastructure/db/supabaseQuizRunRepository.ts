@@ -91,6 +91,7 @@ export class SupabaseQuizRunRepository implements QuizRunRepository, QuizRunQuer
   }
 
   async updateSyncedAt(ids: string[], syncedAt: Date): Promise<void> {
+    if (ids.length === 0) return
     try {
       await sql`UPDATE quiz_runs SET synced_at = ${syncedAt.toISOString()} WHERE id = ANY(${ids})`
     } catch (e) {

@@ -20,6 +20,7 @@ function toNote(row: Record<string, unknown>): NoteEntity {
 
 export class SupabaseNoteRepository implements NoteRepository, NoteQueryService {
   async findByUserIdAndIds(userId: string, ids: string[]): Promise<NoteEntity[]> {
+    if (ids.length === 0) return []
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT n.*
@@ -87,6 +88,7 @@ export class SupabaseNoteRepository implements NoteRepository, NoteQueryService 
   }
 
   async updateSyncedAt(ids: string[], syncedAt: Date): Promise<void> {
+    if (ids.length === 0) return
     try {
       await sql`UPDATE notes SET synced_at = ${syncedAt.toISOString()} WHERE id = ANY(${ids})`
     } catch (e) {

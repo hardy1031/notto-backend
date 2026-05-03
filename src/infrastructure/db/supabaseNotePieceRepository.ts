@@ -13,6 +13,7 @@ function toNotePiece(row: Record<string, unknown>): NotePieceEntity {
 
 export class SupabaseNotePieceRepository implements NotePieceQueryService {
   async findByNoteIds(noteIds: string[]): Promise<NotePieceEntity[]> {
+    if (noteIds.length === 0) return []
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM note_pieces WHERE note_id = ANY(${noteIds})

@@ -20,6 +20,7 @@ function toQuiz(row: Record<string, unknown>): QuizEntity {
 
 export class SupabaseQuizRepository implements QuizRepository, QuizQueryService {
   async findByContextObjectIds(contextObjectIds: string[]): Promise<QuizEntity[]> {
+    if (contextObjectIds.length === 0) return []
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM quizzes WHERE context_object_id = ANY(${contextObjectIds})

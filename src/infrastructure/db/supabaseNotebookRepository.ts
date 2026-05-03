@@ -29,6 +29,7 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
   }
 
   async findByUserIdAndIds(userId: string, ids: string[]): Promise<NotebookEntity[]> {
+    if (ids.length === 0) return []
     try {
       const rows = await sql<Record<string, unknown>[]>`
         SELECT * FROM notebooks WHERE user_id = ${userId} AND id = ANY(${ids}) AND deleted_at IS NULL
@@ -63,6 +64,7 @@ export class SupabaseNotebookRepository implements NotebookRepository, NotebookQ
   }
 
   async updateSyncedAt(ids: string[], syncedAt: Date): Promise<void> {
+    if (ids.length === 0) return
     try {
       await sql`UPDATE notebooks SET synced_at = ${syncedAt.toISOString()} WHERE id = ANY(${ids})`
     } catch (e) {

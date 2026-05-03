@@ -92,7 +92,7 @@ export async function GenerateQuizzesUseCase(
 
   const now = new Date()
   const newContextObjects: ContextObjectEntity[] = piecesWithContent.map((p, i) =>
-    ContextObjectEntity.fromGenerated(
+    ContextObjectEntity.fromAIOutput(
       generatedContextObjects[i]!,
       p.piece.id,
       p.piece.noteId,
@@ -113,7 +113,7 @@ export async function GenerateQuizzesUseCase(
     const contextObject = contextObjectsWithoutQuizzes[generatedQuizItem.contextObjectIndex]
     if (!contextObject)
       throw new Error(`Invalid context_object_index: ${generatedQuizItem.contextObjectIndex}`)
-    return QuizEntity.fromGenerated(generatedQuizItem, contextObject, crypto.randomUUID(), now)
+    return QuizEntity.fromAIOutput(generatedQuizItem, contextObject, crypto.randomUUID(), now)
   })
 
   if (newQuizzes.length > 0) {
