@@ -29,14 +29,16 @@ app.use(async (c, next) => {
   const start = Date.now()
   await next()
   const duration = Date.now() - start
-  console.log(
-    JSON.stringify({
-      method: c.req.method,
-      path: c.req.path,
-      status: c.res.status,
-      duration,
-    })
-  )
+  const status = c.res.status
+  const log = { method: c.req.method, path: c.req.path, status, duration }
+  // Log all requests. 4xx (e.g. validation errors) are the client's fault,
+  // not server bugs, but we still log them at ERROR level so they're
+  // visible in CloudWatch without requiring investigation.
+  if (status >= 400) {
+    console.error(JSON.stringify(log))
+  } else {
+    console.log(JSON.stringify(log))
+  }
 })
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim())
