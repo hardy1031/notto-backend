@@ -94,6 +94,7 @@ export async function GenerateQuizzesUseCase(
   if (newContextObjects.length > 0) {
     await deps.contextObjectRepo.bulkCreate(newContextObjects)
   }
+  console.log(JSON.stringify({ event: "context_objects_generated", count: newContextObjects.length, userId }))
 
   // generate quizzes for context objects that don't have one yet using AI
   const contextObjectsWithoutQuizzes =
@@ -110,4 +111,5 @@ export async function GenerateQuizzesUseCase(
   if (newQuizzes.length > 0) {
     await deps.contextObjectRepo.bulkCreateQuizzes(newQuizzes)
   }
+  console.log(JSON.stringify({ event: "quizzes_generated", count: newQuizzes.length, userId }))
 }

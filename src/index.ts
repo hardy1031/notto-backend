@@ -10,6 +10,7 @@ import {
   NotFoundError,
   S3Error,
 } from "./errors/index.ts"
+import type { AppVariables } from "./types/hono.ts"
 import { authRouter } from "./routes/auth.ts"
 import { learnRouter } from "./routes/learn.ts"
 import { syncNotebooksRouter } from "./routes/syncNotebooks.ts"
@@ -17,7 +18,7 @@ import { syncQuizRunsRouter } from "./routes/syncQuizRuns.ts"
 import { syncQuizzesRouter } from "./routes/syncQuizzes.ts"
 import { usersRouter } from "./routes/users.ts"
 
-const app = new Hono()
+const app = new Hono<{ Variables: AppVariables }>()
 
 // CORS is only needed for browser-based clients (dev tools, web client).
 // Native app clients do not use browsers so CORS headers are irrelevant for them.
@@ -30,7 +31,8 @@ app.use(async (c, next) => {
   await next()
   const duration = Date.now() - start
   const status = c.res.status
-  const base = { method: c.req.method, path: c.req.path, status, duration }
+  const userId = c.get("userId") ?? null
+  const base = { method: c.req.method, path: c.req.path, status, duration, userId }
   // Log all requests. 4xx (e.g. validation errors) are the client's fault,
   // not server bugs, but we still log them at ERROR level so they're
   // visible in CloudWatch without requiring investigation.
