@@ -76,6 +76,7 @@ The trigger and all table definitions are managed as SQL migration files via Sup
 | `created_at` | |
 | `updated_at` | |
 | `synced_at` | |
+| `deleted_at` | NULL when active; set to deletion timestamp for soft delete (tombstone sync) |
 
 **Note**
 
@@ -88,6 +89,7 @@ The trigger and all table definitions are managed as SQL migration files via Sup
 | `created_at` | |
 | `updated_at` | |
 | `synced_at` | |
+| `deleted_at` | NULL when active; set to deletion timestamp for soft delete (tombstone sync) |
 
 **Note Piece**
 
@@ -126,12 +128,13 @@ The trigger and all table definitions are managed as SQL migration files via Sup
 |-----------|-------|
 | `id` | PK |
 | `context_object_id` | FK → Context Object |
-| `type` | Quiz format. Defined as an enum in application code, not a separate entity — quiz types are fixed values that don't grow as user data. MVP values: `choose_context`, `choose_pronunciation`, `fill_metadata`. Future: `write_sentence` |
+| `type` | Quiz format. Defined as an enum in application code, not a separate entity — quiz types are fixed values that don't grow as user data. Values: `choose_context`, `choose_pronunciation`, `fill_metadata` |
 | `question_sentence` | |
 | `answer` | The correct answer. Must be one of the values in `choice_pool` |
-| `choice_pool` | JSON array of 10 strings. The full pool of candidate choices including the correct answer. 4 are randomly selected from this pool when creating a Quiz Record |
+| `choice_pool` | JSON array of 10 strings. The full pool of candidate choices including the correct answer |
 | `created_at` | |
 | `updated_at` | |
+| `deleted_at` | NULL when active; set to deletion timestamp for soft delete. Client can request deletion via `deleted_quiz_ids` in `/sync/quizzes` |
 
 **Quiz Run**
 
@@ -140,7 +143,7 @@ The trigger and all table definitions are managed as SQL migration files via Sup
 | `id` | PK |
 | `user_id` | FK → User |
 | `started_at` | |
-| `completed_at` | |
+| `completed_at` | NULL if user quit mid-session |
 | `synced_at` | |
 
 > **Design decision — no result summary entity:** Quiz run results (score, wrong/right breakdown) are computed by aggregating Quiz Records. No separate result entity is needed.
@@ -152,10 +155,12 @@ The trigger and all table definitions are managed as SQL migration files via Sup
 | `id` | PK |
 | `quiz_run_id` | FK → Quiz Run |
 | `quiz_id` | FK → Quiz |
-| `choices` | JSON array of 4 strings. The subset of `choice_pool` randomly selected at Quiz Run creation time and presented to the user. Includes the correct answer |
-| `user_answer` | The answer the user selected. NULL until the user answers |
-| `is_correct` | Boolean. NULL until the user answers. Quiz Records are pre-created at the start of a run, before the user answers |
+| `choices` | JSON array of strings. The subset of `choice_pool` presented to the user |
+| `user_answer` | The answer the user selected |
+| `is_correct` | Boolean |
 | `created_at` | |
+
+> **Design decision — records synced after completion:** Quiz records are created locally on the client during a run and synced to the server only after the run is complete (or at sync time). All records arrive with `user_answer` and `is_correct` already filled. The DB columns allow NULL to avoid a NOT NULL constraint on the cloud side, but in practice records always have values when synced.
 
 ### 1.4 Normalization
 
@@ -208,6 +213,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
         timestamp synced_at
+        timestamp deleted_at
     }
 
     Note {
@@ -218,6 +224,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
         timestamp synced_at
+        timestamp deleted_at
     }
 
     NotePiece {
@@ -250,6 +257,7 @@ erDiagram
         json choice_pool
         timestamp created_at
         timestamp updated_at
+        timestamp deleted_at
     }
 
     QuizRun {
@@ -300,11 +308,10 @@ erDiagram
 
 ### 2.1 DBMS Selection
 
-| Phase | DBMS | Role |
+| Layer | DBMS | Role |
 |-------|------|------|
-| **MVP** | SQLite | Only database. Source of truth. All tables stored locally on device |
-| **Production** | Supabase PostgreSQL | Cloud database. Source of truth. All tables |
-| **Production** | SQLite | Local cache for offline access and fast reads. Syncs with Supabase |
+| **Cloud (server)** | Supabase PostgreSQL | Source of truth. All tables |
+| **Client** | SQLite | Local cache for offline access and fast reads. Syncs with Supabase |
 
 Supabase is a managed PostgreSQL service. The `public` schema holds application tables (`notebooks`, `notes`, etc.). The `auth` schema is managed by Supabase and holds user credentials (`auth.users`).
 
@@ -380,6 +387,7 @@ PostgreSQL and SQLite use different type systems. The application code (TypeScri
 | `created_at` | `TIMESTAMPTZ` | NOT NULL |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL |
 | `synced_at` | `TIMESTAMPTZ` | NOT NULL |
+| `deleted_at` | `TIMESTAMPTZ` | NULL when active. Set on soft delete |
 
 **notes**
 
@@ -392,6 +400,7 @@ PostgreSQL and SQLite use different type systems. The application code (TypeScri
 | `created_at` | `TIMESTAMPTZ` | NOT NULL |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL |
 | `synced_at` | `TIMESTAMPTZ` | NOT NULL |
+| `deleted_at` | `TIMESTAMPTZ` | NULL when active. Set on soft delete |
 
 **note_pieces**
 
@@ -427,9 +436,10 @@ PostgreSQL and SQLite use different type systems. The application code (TypeScri
 | `type` | `VARCHAR(50)` | NOT NULL. No CHECK — managed by app-side enum |
 | `question_sentence` | `TEXT` | NOT NULL |
 | `answer` | `TEXT` | NOT NULL |
-| `choice_pool` | `JSONB` | NOT NULL. Array of 10 strings. Includes `answer`. Full pool from which 4 are randomly selected per Quiz Record |
+| `choice_pool` | `JSONB` | NOT NULL. Array of 10 strings. Includes `answer` |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL |
 | `updated_at` | `TIMESTAMPTZ` | NOT NULL |
+| `deleted_at` | `TIMESTAMPTZ` | NULL when active. Set on soft delete |
 
 **quiz_runs**
 
@@ -448,9 +458,9 @@ PostgreSQL and SQLite use different type systems. The application code (TypeScri
 | `id` | `UUID` | PK |
 | `quiz_run_id` | `UUID` | NOT NULL. FK → quiz_runs. ON DELETE CASCADE |
 | `quiz_id` | `UUID` | NOT NULL. FK → quizzes. ON DELETE CASCADE |
-| `choices` | `JSONB` | NOT NULL. Array of 4 strings randomly selected from `choice_pool` at run creation time |
-| `user_answer` | `TEXT` | NULL until answered |
-| `is_correct` | `BOOLEAN` | NULL until answered |
+| `choices` | `JSONB` | NOT NULL. Array of strings presented to the user |
+| `user_answer` | `TEXT` | NULL allowed at DB level. Always populated when synced from client |
+| `is_correct` | `BOOLEAN` | NULL allowed at DB level. Always populated when synced from client |
 | `created_at` | `TIMESTAMPTZ` | NOT NULL |
 
 ### 2.4 Indexes
@@ -475,8 +485,11 @@ Primary keys automatically get an index. The following additional indexes are ne
 
 **NOT NULL:** All columns are NOT NULL except:
 - `quiz_runs.completed_at` — NULL when user quits mid-session
-- `quiz_records.user_answer` — NULL until the user answers
-- `quiz_records.is_correct` — NULL until the user answers
+- `quiz_records.user_answer` — NULL allowed at DB level (always populated when synced)
+- `quiz_records.is_correct` — NULL allowed at DB level (always populated when synced)
+- `notebooks.deleted_at` — NULL when active
+- `notes.deleted_at` — NULL when active
+- `quizzes.deleted_at` — NULL when active
 
 **UNIQUE:**
 

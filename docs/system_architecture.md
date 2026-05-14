@@ -157,11 +157,32 @@ src/routes/          ← Hono route handlers (composition root; wires dependenci
 src/usecases/        ← Application usecases (pure business logic)
 src/usecases/queries/← Read-only query service interfaces (CQS-lite)
 src/domain/          ← Domain types, repository interfaces, domain logic
-src/infrastructure/  ← Repository and QueryService implementations (Supabase, S3)
+src/infrastructure/  ← Repository and QueryService implementations (Supabase, S3, Gemini)
+src/middleware/      ← Auth, rate limiting, request validation
 src/schemas/         ← Zod validation schemas
+src/errors/          ← Custom error classes mapped to HTTP status codes
 ```
 
 Data flows inward: routes → usecases → domain. Infrastructure implements domain interfaces and is injected at the route layer (composition root). Domain and usecase layers have no dependency on infrastructure.
+
+### Middleware
+
+| Middleware | Purpose |
+|-----------|---------|
+| `authMiddleware` | Extracts Bearer token, verifies via Supabase Auth API, sets `userId` in context |
+| `ipRateLimit` | Fixed-window rate limiting keyed by client IP — used on unauthenticated endpoints |
+| `userRateLimit` | Fixed-window rate limiting keyed by `userId` — used on AI endpoints |
+| `validate` | Validates request body against a Zod schema; returns 400 on failure |
+
+### Structured logging
+
+All requests are logged as JSON to stdout (forwarded to CloudWatch in production):
+
+```json
+{ "method": "POST", "path": "/sync/quizzes", "status": 200, "duration": 1234, "userId": "uuid" }
+```
+
+4xx/5xx responses additionally include the response body for debugging. Internal errors (`S3Error`, `DBError`) log the full stack trace server-side but return a generic message to the client.
 
 ### Technology choices
 
@@ -172,6 +193,7 @@ Data flows inward: routes → usecases → domain. Infrastructure implements dom
 | Database | Supabase PostgreSQL |
 | Authentication | Supabase Auth (JWT issued by Supabase; verified via `@supabase/supabase-js`) |
 | Note content storage | Amazon S3 |
+| AI | Gemini 2.5 Flash Lite (`gemini-2.5-flash-lite`) via REST API |
 | Validation | Zod |
 | Language | TypeScript |
 
