@@ -7,5 +7,5 @@ variable "aws_region" {
 variable "allowed_origins" {
   description = "Comma-separated list of allowed CORS origins (leave empty for native-only)"
   type        = string
-  default     = ""
+  default     = "http://localhost:5173,http://localhost:3000"
 }
